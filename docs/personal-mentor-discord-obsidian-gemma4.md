@@ -68,6 +68,12 @@ AIはこれらを推測せず、ユーザーのローカル環境で確認して
 - DMをホームにする場合のDMチャンネルID、またはDM内での `/sethome` 実行
 - Obsidian Vaultと `hermes` 出力フォルダの実パス
 
+安全なひな形は `examples/` に置いています。
+
+- `examples/hermes-config.local.yaml.example`
+- `examples/discord.env.example`
+- `examples/SOUL.private-mentor-secretary.md`
+
 ## 1. Hermes Desktop が読む設定ファイルを確認する
 
 Hermes CLI用の設定と、Hermes Desktop用の設定は違う場所を見ていることがあります。

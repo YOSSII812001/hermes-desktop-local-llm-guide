@@ -1,0 +1,47 @@
+# Copy relevant sections into:
+# %LOCALAPPDATA%\hermes\config.yaml
+#
+# Verify the active Desktop config path first:
+# Invoke-RestMethod http://127.0.0.1:9120/api/status | ConvertTo-Json -Depth 8
+#
+# This file intentionally contains no secrets.
+
+model:
+  provider: custom
+  base_url: http://127.0.0.1:8080/v1
+  default: gemma-4-12b-it
+  context_length: 65536
+  api_key: not-needed
+
+agent:
+  reasoning_effort: xhigh
+
+display:
+  show_reasoning: false
+
+approvals:
+  # Convenient for a private local environment, but risky.
+  # Use only when you understand the local-operation risk.
+  mode: off
+
+skills:
+  external_dirs:
+    - C:\Users\<USER>\.codex\skills
+    - C:\Users\<USER>\.agents\skills
+  template_vars: true
+  inline_shell: false
+
+web:
+  backend: ''
+  search_backend: ddgs
+  extract_backend: ''
+
+platform_toolsets:
+  discord:
+    - file
+    - skills
+    - memory
+    - todo
+    - session_search
+    - web
+    - no_mcp
