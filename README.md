@@ -9,6 +9,24 @@ Discord DM、Obsidian、Codex skills、各種Tool useまで含めた個人メン
 
 - [Hermes Agent Desktop を個人メンター秘書として運用する設定メモ](docs/personal-mentor-discord-obsidian-gemma4.md)
 
+## AIへ渡すとき
+
+別のAIにセットアップを依頼するときは、このREADMEと詳細メモを両方読ませてください。
+
+依頼文の例:
+
+```text
+このリポジトリを読んで、Windows環境のHermes Agent Desktopを
+Gemma 4ローカルLLM、Discord DM、Obsidian、Codex skills連携込みで
+セットアップしてください。
+
+まずREADME.mdを読み、次に docs/personal-mentor-discord-obsidian-gemma4.md を読んでください。
+秘密情報や実パスは推測せず、必要なものだけ私に確認してください。
+```
+
+このリポジトリには、Bot Token、DiscordユーザーID、DMチャンネルID、個人ノート本文は入れていません。
+AIは手順を再現できますが、秘密情報と実ファイルパスはユーザーのローカル環境で入力する必要があります。
+
 ## できること
 
 - Hermes Agent Desktop 単体でローカルLLMを使う
