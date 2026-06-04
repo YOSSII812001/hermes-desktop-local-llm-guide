@@ -4,13 +4,17 @@ param(
     [string]$Alias = "gemma-4-12b-it",
     [string]$HostAddress = "127.0.0.1",
     [int]$Port = 8080,
-    [int]$ContextSize = 65536,
+    [int]$ContextSize = 131072,
     [string]$LogsDir = "$env:USERPROFILE\.hermes\logs",
     [ValidateSet("on", "off", "auto")]
     [string]$Reasoning = "on",
     [int]$ReasoningBudget = -1,
     [ValidateSet("auto", "none", "deepseek", "deepseek-legacy")]
-    [string]$ReasoningFormat = "deepseek"
+    [string]$ReasoningFormat = "deepseek",
+    [ValidateSet("f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1")]
+    [string]$CacheTypeK = "q8_0",
+    [ValidateSet("f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1")]
+    [string]$CacheTypeV = "q8_0"
 )
 
 $ErrorActionPreference = "Stop"
@@ -81,7 +85,9 @@ $Arguments = @(
     "--parallel", "1",
     "--reasoning", $Reasoning,
     "--reasoning-budget", [string]$ReasoningBudget,
-    "--reasoning-format", $ReasoningFormat
+    "--reasoning-format", $ReasoningFormat,
+    "--cache-type-k", $CacheTypeK,
+    "--cache-type-v", $CacheTypeV
 )
 
 $process = Start-Process `
@@ -97,5 +103,7 @@ Write-Host "Started llama-server pid=$($process.Id)"
 Write-Host "Endpoint: $BaseUrl"
 Write-Host "Model alias: $Alias"
 Write-Host "Model file: $ModelPath"
+Write-Host "Context size: $ContextSize"
+Write-Host "KV cache: K=$CacheTypeK V=$CacheTypeV"
 Write-Host "Logs: $StdOutLog"
 Write-Host "Errors: $StdErrLog"

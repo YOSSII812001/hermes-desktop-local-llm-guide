@@ -81,7 +81,8 @@ Hermes Desktop側から見ると、ローカルにあるOpenAI互換エンドポ
 | Hermes Agent Desktop | v0.15.1 |
 | llama.cpp | CUDA対応版 b9498 |
 | モデル | `gemma-4-12b-it-Q6_K.gguf` |
-| コンテキスト長 | 65536 |
+| コンテキスト長 | 131072 |
+| KVキャッシュ | `q8_0` |
 | APIエンドポイント | `http://127.0.0.1:8080/v1` |
 
 最初はQ8を使いました。
@@ -160,11 +161,13 @@ C:\Users\<USER>\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe
   --alias gemma-4-12b-it `
   --host 127.0.0.1 `
   --port 8080 `
-  --ctx-size 65536 `
+  --ctx-size 131072 `
   --parallel 1 `
   --reasoning on `
   --reasoning-budget -1 `
-  --reasoning-format deepseek
+  --reasoning-format deepseek `
+  --cache-type-k q8_0 `
+  --cache-type-v q8_0
 ```
 
 ポイントは `--alias` です。
@@ -172,6 +175,9 @@ Hermes側ではこの名前をモデル名として使います。
 
 `--reasoning on` と `--reasoning-budget -1` は、Gemma 4の思考を有効にして制限なし寄りにする設定です。
 思考が不要な場合は `--reasoning off` に戻せます。
+
+128KコンテキストではKVキャッシュのVRAM使用量が増えます。
+今回の環境では `--cache-type-k q8_0` と `--cache-type-v q8_0` を使うと、128Kでも現実的なVRAM余裕が出ました。
 
 起動確認:
 
@@ -202,7 +208,7 @@ model:
   base_url: http://127.0.0.1:8080/v1
   default: gemma-4-12b-it
   provider: custom
-  context_length: 65536
+  context_length: 131072
   api_key: not-needed
 
 approvals:
@@ -213,7 +219,7 @@ approvals:
 便利ですが、危険なコマンドも承認なしで実行されます。
 自分だけのローカル環境で、リスクを理解したうえで使ってください。
 
-## 5. 64Kコンテキストが必要
+## 5. 64K以上のコンテキストが必要
 
 Hermes Agentは、モデルのコンテキスト長が短いと起動できないことがあります。
 今回、32768では次のエラーが出ました。
@@ -223,19 +229,22 @@ Model gemma-4-12b-it has a context window of 32,768 tokens,
 which is below the minimum 64,000 required by Hermes Agent.
 ```
 
-そのため、`llama-server` とHermes設定の両方を65536にしました。
+そのため、`llama-server` とHermes設定の両方を64K以上にします。
+Q6_Kへ変更した後はVRAMに少し余裕が出たため、現在は128Kで運用しています。
 
 `llama-server`:
 
 ```powershell
---ctx-size 65536
+--ctx-size 131072
+--cache-type-k q8_0
+--cache-type-v q8_0
 ```
 
 Hermes:
 
 ```yaml
 model:
-  context_length: 65536
+  context_length: 131072
 ```
 
 ## 6. Hermes Desktopを再起動する
@@ -264,8 +273,8 @@ Invoke-RestMethod http://127.0.0.1:9120/api/model/info | ConvertTo-Json -Depth 5
 {
   "model": "gemma-4-12b-it",
   "provider": "custom",
-  "config_context_length": 65536,
-  "effective_context_length": 65536
+  "config_context_length": 131072,
+  "effective_context_length": 131072
 }
 ```
 
@@ -454,18 +463,21 @@ Gemma 4対応版に更新してください。
 ### 32768コンテキストで失敗する
 
 Hermes Agentは最低64K程度を要求する場合があります。
+今回のGemma 4 Q6_Kでは128Kまで起動できました。
 
 `llama-server`:
 
 ```powershell
---ctx-size 65536
+--ctx-size 131072
+--cache-type-k q8_0
+--cache-type-v q8_0
 ```
 
 Hermes:
 
 ```yaml
 model:
-  context_length: 65536
+  context_length: 131072
 ```
 
 ### 返答が遅い
@@ -494,7 +506,8 @@ nvidia-smi
 - Desktopの実設定は `/api/status` の `config_path` で確認する
 - `/v1/models` が返っても、Hermes側の設定が合っているとは限らない
 - 既存チャットは古いモデル名をセッションDBに持つことがある
-- Hermes Agentでは64Kコンテキストを満たす必要がある
+- Hermes Agentでは64K以上のコンテキストを満たす必要がある
+- Gemma 4 Q6_Kはモデル上限が128Kで、`q8_0` KVキャッシュなら16GB VRAMでも起動できた
 - Gemma 4は古いllama.cppでは読めない
 - Q8は動くが、16GB VRAMでは余裕が少ない
 - Q6_Kはかなり現実的な選択
@@ -511,13 +524,14 @@ Hermes Agent Desktop
   -> provider: custom
   -> base_url: http://127.0.0.1:8080/v1
   -> model: gemma-4-12b-it
-  -> context_length: 65536
+  -> context_length: 131072
 
 llama-server
   -> model file: gemma-4-12b-it-Q6_K.gguf
   -> alias: gemma-4-12b-it
   -> port: 8080
-  -> ctx-size: 65536
+  -> ctx-size: 131072
+  -> cache-type-k/v: q8_0
 
 launcher shortcut
   -> starts llama-server

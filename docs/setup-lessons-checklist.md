@@ -16,7 +16,8 @@
 |---|---|---|
 | Hermes CLIとHermes Desktopは別の `config.yaml` を読むことがある | README、詳細メモ | `/api/status` の `config_path` を見る |
 | Desktopの既存セッションが古いモデル名を握ることがある | README | `state.db` を見る。修正前にバックアップする |
-| Hermes Agentは64K程度のコンテキストを要求することがある | README、詳細メモ | `--ctx-size 65536` と `context_length: 65536` を合わせる |
+| Hermes Agentは64K程度のコンテキストを要求することがある | README、詳細メモ | 下限は64K。Gemma 4 Q6_Kでは128Kも起動できた |
+| 128KではKVキャッシュのVRAMが大きくなる | README、詳細メモ、config例 | `--cache-type-k q8_0` と `--cache-type-v q8_0` で余裕を作る |
 | Gemma 4は古いllama.cppでは読めないことがある | README、詳細メモ | `unknown model architecture: 'gemma4'` が出たら更新する |
 | 16GB VRAMではQ8よりQ6_Kが現実的 | README | Q6_Kを第一候補にする |
 | Gemma 4の思考はHermes側とllama-server側の両方を見る | README、詳細メモ | `reasoning_effort: xhigh` と `--reasoning-budget -1` |
@@ -57,7 +58,7 @@
 次が通れば、今回の環境にかなり近い状態です。
 
 - `http://127.0.0.1:8080/v1/models` に `gemma-4-12b-it` が出る
-- Hermes Desktopの `/api/model/info` が `provider: custom` と `context_length: 65536` を返す
+- Hermes Desktopの `/api/model/info` が `provider: custom` と `context_length: 131072` を返す
 - Gemma 4の `reasoning_content` が返る
 - Hermes Desktopを閉じると `llama-server.exe` が止まり、VRAMが空く
 - Discord DMでBotが返答する
