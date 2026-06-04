@@ -5,7 +5,12 @@ param(
     [string]$HostAddress = "127.0.0.1",
     [int]$Port = 8080,
     [int]$ContextSize = 65536,
-    [string]$LogsDir = "$env:USERPROFILE\.hermes\logs"
+    [string]$LogsDir = "$env:USERPROFILE\.hermes\logs",
+    [ValidateSet("on", "off", "auto")]
+    [string]$Reasoning = "on",
+    [int]$ReasoningBudget = -1,
+    [ValidateSet("auto", "none", "deepseek", "deepseek-legacy")]
+    [string]$ReasoningFormat = "deepseek"
 )
 
 $ErrorActionPreference = "Stop"
@@ -74,7 +79,9 @@ $Arguments = @(
     "--port", [string]$Port,
     "--ctx-size", [string]$ContextSize,
     "--parallel", "1",
-    "--reasoning", "off"
+    "--reasoning", $Reasoning,
+    "--reasoning-budget", [string]$ReasoningBudget,
+    "--reasoning-format", $ReasoningFormat
 )
 
 $process = Start-Process `

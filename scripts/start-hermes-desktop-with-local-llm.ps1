@@ -148,14 +148,12 @@ try {
         Write-LifecycleLog "WARNING: $($_.Exception.Message)"
     }
 
-    while ($true) {
-        $hermesProcesses = Get-CimInstance Win32_Process -Filter "name = 'Hermes.exe'"
-        if (-not $hermesProcesses) {
-            Write-LifecycleLog "Hermes Desktop is no longer running"
-            break
-        }
-
-        Start-Sleep -Seconds 3
+    Write-LifecycleLog "Waiting for launched Hermes Desktop pid=$($hermesProcess.Id) to exit"
+    if (Get-Process -Id $hermesProcess.Id -ErrorAction SilentlyContinue) {
+        Wait-Process -Id $hermesProcess.Id
+        Write-LifecycleLog "Launched Hermes Desktop exited pid=$($hermesProcess.Id)"
+    } else {
+        Write-LifecycleLog "Launched Hermes Desktop already exited pid=$($hermesProcess.Id)"
     }
 } catch {
     Write-LifecycleLog "ERROR: $($_.Exception.Message)"
