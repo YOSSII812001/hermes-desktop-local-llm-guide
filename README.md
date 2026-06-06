@@ -388,6 +388,8 @@ scripts/start-gemma-llama-server.ps1
 scripts/stop-gemma-llama-server.ps1
 scripts/start-hermes-desktop-with-local-llm.ps1
 scripts/watch-hermes-process-and-stop-gemma.ps1
+scripts/xai_oauth_manual_helper.py
+scripts/x_search.py
 ```
 
 まず `scripts/start-gemma-llama-server.ps1` の先頭を自分の環境に合わせます。
@@ -433,7 +435,42 @@ $shortcut.Save()
 
 この対策を入れたものが `scripts/start-hermes-desktop-with-local-llm.ps1` です。
 
-## 14. トラブルシュート
+## 14. xAI OAuth と X検索 helper
+
+Hermesの `x_search` は、xAI OAuthまたは `XAI_API_KEY` があると使えます。
+通常はHermes Desktopの画面や `hermes auth add xai-oauth` でログインします。
+
+スマホやリモート環境では、OAuth後に `127.0.0.1` へ戻れず「サーバーに接続できません」と表示されることがあります。
+その場合は、次のhelperで認可URLを作り、callback URLをローカルで交換します。
+
+```powershell
+$python = "$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts\python.exe"
+& $python .\scripts\xai_oauth_manual_helper.py init
+```
+
+表示されたURLを開き、許可後にブラウザのアドレスバーから `callback?...` URLをコピーします。
+そのURLを次のコマンドへ渡します。
+
+```powershell
+& $python .\scripts\xai_oauth_manual_helper.py exchange "http://127.0.0.1:56121/callback?state=...&code=..."
+```
+
+注意点:
+
+- `callback` URLを受け取った後に `init` を再実行しない
+- `init` を再実行するとPKCE stateが変わり、`state mismatch` になる
+- token、callback URL、一時stateファイルはコミットしない
+
+`x_search` をHermesのtool callではなく、terminalから直接試す場合は次を使います。
+
+```powershell
+& $python .\scripts\x_search.py "Hermes Agent x_search" --pretty
+& $python .\scripts\x_search.py "Hermes Agent x_search" --handle xai --pretty
+```
+
+詳しい手順は `examples/x-search-setup-notes.md` にまとめています。
+
+## 15. トラブルシュート
 
 ### Hermes Desktopが返答しない
 
@@ -503,7 +540,7 @@ GPU確認:
 nvidia-smi
 ```
 
-## 15. 今回の学び
+## 16. 今回の学び
 
 今回、一番時間がかかったのはモデルそのものではありません。
 設定ファイル、セッションDB、既存プロセス、GPU使用状況の切り分けでした。
@@ -523,7 +560,7 @@ nvidia-smi
 - 自動起動では、モデル読み込み完了を待つより先にDesktop画面を出すほうが親切
 - ショートカットは複数回押される前提で、二重起動防止が必要
 
-## 16. 最終構成
+## 17. 最終構成
 
 最終的には、次の構成で安定しました。
 
