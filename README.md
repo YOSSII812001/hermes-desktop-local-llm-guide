@@ -45,6 +45,9 @@ AIは手順を再現できますが、秘密情報と実ファイルパスはユ
 - 5分cronでCodex自律runnerを動かし、空き時間に宿題を進める
 - 宿題完了時にDiscordへ報告し、Obsidianファイル名へ `[完了] ` を付ける
 - Gatewayの自己再起動を外側Scheduled Taskで安全に実行する
+- xAI OAuthと `x_search` でXの公開投稿を検索する
+- Discord向け内部思考ガードでローカルLLMの漏れを抑える
+- Gateway外側watchdogでGateway停止を復旧する
 - Codex skillsをHermes側でも参照する
 - `approvals.mode: off` で承認なしのYOLO運用にする
 

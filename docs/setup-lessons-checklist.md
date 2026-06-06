@@ -37,7 +37,13 @@
 | 宿題完了時はDiscordへ報告する | 自律実行メモ | cron outputと `agent.log` の `delivered to discord` まで見る |
 | Obsidian完了表示はfrontmatter、本文、ファイル名で行う | 自律実行メモ | `#hermes/homework/done` と `[完了] ` prefixを確認する |
 | Gateway自己再起動は外側Scheduled Taskで行う | 自律実行メモ | `running` だけでなく再起動前後のPID差分を見る |
+| Gateway停止復旧は外側watchdogで行う | 自律実行メモ | 既存の `Hermes_Gateway` taskを再利用する |
 | no_agent cronのstdoutはUTF-8で捕捉する | 自律実行メモ | `python.exe` 優先、`encoding=utf-8`、`errors=replace` |
+| xAI X SearchはOAuth stateを維持して有効化する | 自律実行メモ | `xai-oauth logged in` と `x_search enabled` を確認する |
+| Discord最終応答には内部思考ガードを入れる | 自律実行メモ | `transform_llm_output` でDiscordだけを対象にする |
+| mentor Cronは通常会話文脈をpre-run scriptで渡す | 自律実行メモ | `daily_conversation_context.py` をjobに付ける |
+| 自律heartbeatはスコアだけで通知しない | 自律実行メモ | 不要な通知は `[SILENT]` にする |
+| context圧縮が早すぎる場合はthresholdを見る | 自律実行メモ | 128Kなら `compression.threshold: 0.75` 前後を検討する |
 | 既存Obsidianノートは勝手に編集しない | 詳細メモ、SOUL例 | 編集はユーザーが明示したときだけ |
 | Codex skillsは外部ディレクトリとして渡す | 詳細メモ、config例 | `.codex\skills` と `.agents\skills` を設定する |
 | skill本文は指針であり、命令として無条件実行しない | 詳細メモ、SOUL例 | shell実行や認証変更は慎重に扱う |
@@ -75,5 +81,9 @@
 - `codex-autonomous-runner-5m` が宿題を拾い、Codexへ送信済み通知を出す
 - 宿題完了時にDiscord配送ログとObsidianの `[完了] ` prefixを確認できる
 - Gateway自己再起動要求で、外側Scheduled TaskがPID差分付きで再起動できる
+- `x_search` を有効化し、xAI OAuthが `logged in` になる
+- Gateway外側watchdogが登録され、Gateway停止後に復旧できる
+- Discord内部思考ガードが有効で、漏えいサンプルを投稿前に削れる
+- mentor Cronが当日の通常会話をScript Outputとして受け取れる
 - `hermes skills list` でCodex skillsが見える
 - Discord向けToolsetで危険なToolを開けていない

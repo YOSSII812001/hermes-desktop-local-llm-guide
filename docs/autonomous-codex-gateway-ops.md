@@ -359,7 +359,239 @@ Get-Content "$env:LOCALAPPDATA\hermes\agent-autonomous-codex\active_task.json" |
   ConvertTo-Json -Depth 12
 ```
 
-## 8. よくある失敗
+## 8. xAI X Searchを有効にする
+
+HermesでXの公開投稿を検索したい場合は、`x_search` を有効にします。
+これはHermes Agentの高度な使い方、公開事例、最新の運用例を調べるときに便利です。
+
+CLI向けに有効化する例:
+
+```powershell
+$env:HERMES_CONFIG_DIR = "$env:LOCALAPPDATA\hermes"
+& "$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts\hermes.exe" tools enable --platform cli x_search
+```
+
+xAI OAuthの状態確認:
+
+```powershell
+$env:HERMES_CONFIG_DIR = "$env:LOCALAPPDATA\hermes"
+& "$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts\hermes.exe" auth status xai-oauth
+```
+
+Tool有効化の確認:
+
+```powershell
+$env:HERMES_CONFIG_DIR = "$env:LOCALAPPDATA\hermes"
+& "$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts\hermes.exe" tools list --platform cli
+```
+
+期待する状態:
+
+```text
+x_search enabled
+xai-oauth logged in
+```
+
+スマホでxAI OAuthを行う場合、認可後に `127.0.0.1` のcallbackへ戻れないことがあります。
+その場合でも、ブラウザのアドレスバーに出たcallback URLに含まれる認可コードとstateを使えば、ローカルで交換できます。
+
+注意点:
+
+- OAuth tokenやcallback URL全文をGitHubへ入れない
+- OAuthリンク生成後は、callbackを受け取るまでstateを再生成しない
+- stateを再生成すると `state mismatch` になる
+- 交換完了後は、一時stateファイルを削除する
+- Discordなど他platformで使う場合は、そのplatformのtoolsetでも個別に有効化を確認する
+
+疎通確認の考え方:
+
+```text
+1. hermes auth status xai-oauth が logged in
+2. hermes tools list --platform cli で x_search enabled
+3. x_search tool のrequirements checkが true
+4. 軽い検索で success=true と citation が返る
+```
+
+## 9. Gateway外側watchdogを置く
+
+Gateway内cronは、Gatewayが止まると一緒に止まります。
+そのため、Gateway停止そのものを復旧したい場合は、外側のWindows Scheduled Taskで監視します。
+
+配置例:
+
+```text
+%LOCALAPPDATA%\hermes\scripts\ensure-hermes-gateway.ps1
+```
+
+役割:
+
+- `hermes_cli.main gateway run` の `pythonw.exe` / `python.exe` プロセスを探す
+- Gatewayが動いていれば何もしない
+- Gatewayが落ちていれば、既存の `Hermes_Gateway` Scheduled Taskを起動する
+- 直接 `pythonw.exe` を組み立てず、既存taskを再利用する
+- Mutexでwatchdog自身の多重実行を避ける
+- 復旧結果を `logs\gateway-watchdog.log` に残す
+
+Scheduled Taskの例:
+
+```text
+Task name:
+Hermes_Gateway_Watchdog
+
+Action:
+powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%LOCALAPPDATA%\hermes\scripts\ensure-hermes-gateway.ps1"
+
+Schedule:
+5分間隔
+```
+
+確認:
+
+```powershell
+schtasks.exe /Query /TN Hermes_Gateway_Watchdog /V /FO LIST
+Get-Content "$env:LOCALAPPDATA\hermes\logs\gateway-watchdog.log" -Tail 50
+```
+
+復旧の完了条件:
+
+- Gateway停止を検知する
+- watchdogが `Hermes_Gateway` taskを起動する
+- Discordがconnectedになる
+- Cron tickerが開始する
+- `hermes gateway status` でGateway process runningになる
+
+## 10. Discord内部思考ガードを入れる
+
+ローカルLLMをDiscordへつなぐ場合、最終応答に内部メモが混ざることがあります。
+`display.platforms.discord.streaming: false` でも、最終応答そのものに混ざる場合があります。
+
+対策として、Discord向けの `transform_llm_output` プラグインを置きます。
+
+配置例:
+
+```text
+%LOCALAPPDATA%\hermes\plugins\local-discord-internal-thought-guard
+```
+
+このプラグインで削る対象:
+
+- `<think>...</think>`
+- `Plan:`
+- `Self-Correction`
+- `tool calls`
+- `final response`
+- `The user is`
+- `I have already`
+
+方針:
+
+- Discord向け最終応答だけを対象にする
+- CLIやDesktopの通常応答には影響させない
+- 削除後に本文が空なら、安全な短文へ差し替える
+- 再発したら、実際の漏れ文をマーカーに追加する
+
+設定例:
+
+```yaml
+plugins:
+  enabled:
+    - local-discord-internal-thought-guard
+```
+
+確認観点:
+
+- PluginManagerが `transform_llm_output` フックを登録する
+- 漏れサンプルから内部メモが削れる
+- 通常の英語文までは過剰に削らない
+- `platform=cli` では処理しない
+- Gateway再起動後にDiscord connectedになる
+
+## 11. Cron check-inへ会話文脈を渡す
+
+Hermes Cronは新しいisolated sessionで動くため、通常会話の履歴を自動では読みません。
+個人メンター秘書のcheck-inを自然にしたい場合は、pre-run scriptで当日の会話文脈を渡します。
+
+配置例:
+
+```text
+%LOCALAPPDATA%\hermes\scripts\daily_conversation_context.py
+```
+
+scriptの考え方:
+
+- `state.db` の `sessions` / `messages` から当日の通常会話を読む
+- `source != cron` のユーザー発話だけを材料にする
+- assistant文、tool文、内部思考混入っぽい文は渡さない
+- 具体話題を1つだけ拾う
+- 会話が古い場合や材料が弱い場合は、無理に通知しない
+
+cron job側:
+
+```json
+{
+  "name": "mentor-checkin-2100",
+  "script": "daily_conversation_context.py",
+  "deliver": "discord"
+}
+```
+
+Windowsでは、親プロセス側のdecode方式にも注意します。
+script stdoutはHermes側の読み方に合わせます。
+
+## 12. 自律heartbeatは通知しすぎない
+
+15分ごとの自律heartbeatは便利ですが、通知しすぎるとノイズになります。
+スコアが高いだけで送らず、「いま割り込む価値があるか」を見る設計にします。
+
+配置例:
+
+```text
+%LOCALAPPDATA%\hermes\scripts\autonomous_trigger_evaluator.py
+```
+
+抑制するもの:
+
+- 直近通知から時間が短い
+- 同じtopicが続いている
+- 同じ文面を繰り返している
+- 会話が古い
+- 具体的な次の一手がない
+- `Codex` のような広い単語だけでtopicが固定されている
+
+設定:
+
+```yaml
+cron:
+  wrap_response: false
+```
+
+`[SILENT]` の場合はDiscordへ配送しないようにします。
+ログでは、cron outputと `agent.log` の delivery skip を確認します。
+
+## 13. context圧縮は早すぎたらthresholdを見る
+
+128K context運用で `compression.threshold: 0.5` にすると、約65K tokenで圧縮が始まります。
+長いデバッグ会話では早く感じることがあります。
+
+通常会話の継続性を優先する場合は、まず `0.75` 前後へ上げます。
+
+```yaml
+compression:
+  threshold: 0.75
+```
+
+`target_ratio` は圧縮後にどれくらい縮めるかの設定です。
+圧縮開始タイミングだけを変えたい場合は、まず `threshold` だけ触ります。
+
+設定変更後:
+
+```powershell
+$env:HERMES_CONFIG_DIR = "$env:LOCALAPPDATA\hermes"
+& "$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts\hermes.exe" mcp list
+& "$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts\hermes.exe" gateway restart
+```
+
+## 14. よくある失敗
 
 ### 完了報告がDiscordへ届かない
 
@@ -404,7 +636,31 @@ frontmatterだけだと、人間には見えにくいです。
 `active_task.json` のstatusが `queued`、`running`、`needs_followup` なら、新しいタスクで上書きしません。
 明示的に置き換える場合だけ、専用フラグを使います。
 
-## 9. 完了条件
+### xAI OAuthでstate mismatchになる
+
+OAuthリンクを作り直すと、PKCE stateが変わります。
+ユーザーがcallback URLを貼るまでは、同じstateを保持してください。
+
+callback URL全文は秘密情報に近い扱いです。
+GitHubやチャットログへ保存しないでください。
+
+### Gateway外側watchdogが二重起動する
+
+Gatewayの親 `pythonw.exe` と子 `pythonw.exe` が両方見えることがあります。
+これは二重起動とは限りません。
+
+判定では、`hermes_cli.main gateway run` を含む親子プロセスをまとめて見ます。
+watchdog自身はMutexで多重起動を避けます。
+
+### Discordに内部思考が漏れる
+
+プロンプト指示だけでは防ぎきれない場合があります。
+Discord投稿前の `transform_llm_output` フィルタを使います。
+
+再発した場合は、漏れた実文を短く抽出し、マーカーへ追加します。
+長い漏えい文や個人情報は保存しません。
+
+## 15. 完了条件
 
 別PCで再現できたと判断する条件です。
 
@@ -416,14 +672,22 @@ frontmatterだけだと、人間には見えにくいです。
 - Obsidian宿題ノートに本文タグと `[完了] ` prefixが付く
 - Gateway自己再起動要求を作ると、外側Scheduled Taskが安全なタイミングで再起動する
 - 再起動前後でGateway PIDが変わる
+- `x_search` を使う場合、xAI OAuthがlogged inになり、`x_search` がenabledになる
+- Gateway外側watchdogを使う場合、Gateway停止後に既存taskから復旧できる
+- Discord内部思考ガードを使う場合、漏えいサンプルが投稿前に削れる
+- mentor cronを使う場合、通常会話文脈がScript Outputとして渡る
+- 自律heartbeatを使う場合、不要な通知は `[SILENT]` で止まる
 
-## 10. 公開repoへ入れないもの
+## 16. 公開repoへ入れないもの
 
 次は絶対にGitHubへ入れません。
 
 - Discord Bot Token
 - Discord numeric user ID
 - DMチャンネルID
+- xAI OAuth token
+- xAI OAuth callback URL全文
+- OAuth stateファイル
 - `.env`
 - `auth.json`
 - `state.db`
