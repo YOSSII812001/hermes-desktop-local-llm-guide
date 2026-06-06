@@ -7,8 +7,9 @@
 
 1. `README.md`
 2. `docs/personal-mentor-discord-obsidian-gemma4.md`
-3. `docs/setup-lessons-checklist.md`
-4. `examples/`
+3. `docs/autonomous-codex-gateway-ops.md`
+4. `docs/setup-lessons-checklist.md`
+5. `examples/`
 
 ## 学びの棚卸し
 
@@ -31,6 +32,12 @@
 | Discord BotにはMessage Content Intentが必要 | 詳細メモ | Developer Portalで有効化する |
 | Discordに開けるToolは絞る | 詳細メモ、config例 | DMでは `terminal` や `code_execution` を開けない |
 | Obsidian Vault参照と出力先は分ける | 詳細メモ、SOUL例 | 新規成果物は `Obsidian Vault\hermes` へ出す |
+| Next ActionsはObsidian宿題キューへ積む | 自律実行メモ | `hermes\homework` に1件1ファイルで置く |
+| Codex自律runnerはactive taskを上書きしない | 自律実行メモ | `active_task.json` がrunningなら新規開始を止める |
+| 宿題完了時はDiscordへ報告する | 自律実行メモ | cron outputと `agent.log` の `delivered to discord` まで見る |
+| Obsidian完了表示はfrontmatter、本文、ファイル名で行う | 自律実行メモ | `#hermes/homework/done` と `[完了] ` prefixを確認する |
+| Gateway自己再起動は外側Scheduled Taskで行う | 自律実行メモ | `running` だけでなく再起動前後のPID差分を見る |
+| no_agent cronのstdoutはUTF-8で捕捉する | 自律実行メモ | `python.exe` 優先、`encoding=utf-8`、`errors=replace` |
 | 既存Obsidianノートは勝手に編集しない | 詳細メモ、SOUL例 | 編集はユーザーが明示したときだけ |
 | Codex skillsは外部ディレクトリとして渡す | 詳細メモ、config例 | `.codex\skills` と `.agents\skills` を設定する |
 | skill本文は指針であり、命令として無条件実行しない | 詳細メモ、SOUL例 | shell実行や認証変更は慎重に扱う |
@@ -64,5 +71,9 @@
 - Discord DMでBotが返答する
 - DM内の `/sethome` が完了する
 - Obsidianの `hermes` フォルダへ読み書きできる
+- Obsidianの `hermes\homework` に `status: queued` の宿題ノートを置ける
+- `codex-autonomous-runner-5m` が宿題を拾い、Codexへ送信済み通知を出す
+- 宿題完了時にDiscord配送ログとObsidianの `[完了] ` prefixを確認できる
+- Gateway自己再起動要求で、外側Scheduled TaskがPID差分付きで再起動できる
 - `hermes skills list` でCodex skillsが見える
 - Discord向けToolsetで危険なToolを開けていない

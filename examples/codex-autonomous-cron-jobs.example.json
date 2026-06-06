@@ -1,0 +1,56 @@
+{
+  "jobs": [
+    {
+      "id": "c0d3xauto5m1",
+      "name": "codex-autonomous-runner-5m",
+      "prompt": "",
+      "skills": [],
+      "skill": "",
+      "script": "codex_autonomous_runner.py",
+      "no_agent": true,
+      "context_from": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "*/5 * * * *",
+        "display": "*/5 * * * *"
+      },
+      "schedule_display": "*/5 * * * *",
+      "repeat": {
+        "times": null,
+        "completed": 0
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "deliver": "discord",
+      "enabled_toolsets": null,
+      "workdir": null,
+      "profile": null
+    },
+    {
+      "id": "gwselfrestart1m",
+      "name": "gateway-self-restart-1m",
+      "prompt": "",
+      "skills": [],
+      "skill": "",
+      "script": "hermes_gateway_self_restart.py",
+      "no_agent": true,
+      "context_from": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "*/1 * * * *",
+        "display": "*/1 * * * *"
+      },
+      "schedule_display": "*/1 * * * *",
+      "repeat": {
+        "times": null,
+        "completed": 0
+      },
+      "enabled": false,
+      "state": "scheduled",
+      "deliver": "discord",
+      "enabled_toolsets": null,
+      "workdir": null,
+      "profile": null
+    }
+  ]
+}
