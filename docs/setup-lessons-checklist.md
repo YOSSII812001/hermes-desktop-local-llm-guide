@@ -17,10 +17,10 @@
 |---|---|---|
 | Hermes CLIとHermes Desktopは別の `config.yaml` を読むことがある | README、詳細メモ | `/api/status` の `config_path` を見る |
 | Desktopの既存セッションが古いモデル名を握ることがある | README | `state.db` を見る。修正前にバックアップする |
-| Hermes Agentは64K程度のコンテキストを要求することがある | README、詳細メモ | 下限は64K。Gemma 4 Q6_Kでは128Kも起動できた |
-| 128KではKVキャッシュのVRAMが大きくなる | README、詳細メモ、config例 | `--cache-type-k q8_0` と `--cache-type-v q8_0` で余裕を作る |
+| Hermes Agentは64K程度のコンテキストを要求することがある | README、詳細メモ | 下限は64K。公式Gemma 4 QAT Q4_0では256Kも起動できた |
+| 256KではKVキャッシュのVRAMが大きくなる | README、詳細メモ、config例 | `--cache-type-k q8_0` と `--cache-type-v q8_0` で余裕を作る |
 | Gemma 4は古いllama.cppでは読めないことがある | README、詳細メモ | `unknown model architecture: 'gemma4'` が出たら更新する |
-| 16GB VRAMではQ8よりQ6_Kが現実的 | README | Q6_Kを第一候補にする |
+| 16GB VRAMでは公式QAT Q4_0が現実的 | README | `google/gemma-4-12B-it-qat-q4_0-gguf` を第一候補にする |
 | Gemma 4の思考はHermes側とllama-server側の両方を見る | README、詳細メモ | `reasoning_effort: xhigh` と `--reasoning-budget -1` |
 | 思考内容はユーザーへ常時見せなくてもよい | 詳細メモ、config例 | `display.show_reasoning: false` を維持する |
 | llama-server準備完了を待ってからDesktop表示すると不安になる | README | Desktopは先に表示し、準備確認は裏で行う |
@@ -43,7 +43,7 @@
 | Discord最終応答には内部思考ガードを入れる | 自律実行メモ | `transform_llm_output` でDiscordだけを対象にする |
 | mentor Cronは通常会話文脈をpre-run scriptで渡す | 自律実行メモ | `daily_conversation_context.py` をjobに付ける |
 | 自律heartbeatはスコアだけで通知しない | 自律実行メモ | 不要な通知は `[SILENT]` にする |
-| context圧縮が早すぎる場合はthresholdを見る | 自律実行メモ | 128Kなら `compression.threshold: 0.75` 前後を検討する |
+| context圧縮が早すぎる場合はthresholdを見る | 自律実行メモ | 256Kなら `compression.threshold: 0.75` 前後を検討する |
 | 既存Obsidianノートは勝手に編集しない | 詳細メモ、SOUL例 | 編集はユーザーが明示したときだけ |
 | Codex skillsは外部ディレクトリとして渡す | 詳細メモ、config例 | `.codex\skills` と `.agents\skills` を設定する |
 | skill本文は指針であり、命令として無条件実行しない | 詳細メモ、SOUL例 | shell実行や認証変更は慎重に扱う |
@@ -71,7 +71,7 @@
 次が通れば、今回の環境にかなり近い状態です。
 
 - `http://127.0.0.1:8080/v1/models` に `gemma-4-12b-it` が出る
-- Hermes Desktopの `/api/model/info` が `provider: custom` と `context_length: 131072` を返す
+- Hermes Desktopの `/api/model/info` が `provider: custom` と `context_length: 262144` を返す
 - Gemma 4の `reasoning_content` が返る
 - Hermes Desktopを閉じると `llama-server.exe` が止まり、VRAMが空く
 - Discord DMでBotが返答する

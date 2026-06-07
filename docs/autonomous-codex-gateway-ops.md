@@ -570,7 +570,7 @@ cron:
 
 ## 13. context圧縮は早すぎたらthresholdを見る
 
-128K context運用で `compression.threshold: 0.5` にすると、約65K tokenで圧縮が始まります。
+256K context運用で `compression.threshold: 0.5` にすると、約131K tokenで圧縮が始まります。
 長いデバッグ会話では早く感じることがあります。
 
 通常会話の継続性を優先する場合は、まず `0.75` 前後へ上げます。

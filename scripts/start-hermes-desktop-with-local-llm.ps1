@@ -5,7 +5,7 @@ param(
     [string]$HermesExe = "$env:LOCALAPPDATA\hermes\hermes-agent\apps\desktop\release\win-unpacked\Hermes.exe",
     [string]$BaseUrl = "http://127.0.0.1:8080/v1",
     [string]$ExpectedModel = "gemma-4-12b-it",
-    [string]$ExpectedModelFileName = "gemma-4-12b-it-Q6_K.gguf",
+    [string]$ExpectedModelFileName = "gemma-4-12b-it-qat-q4_0.gguf",
     [string]$LogsDir = "$env:USERPROFILE\.hermes\logs"
 )
 

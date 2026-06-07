@@ -1,10 +1,10 @@
 param(
     [string]$ServerExe = "$env:USERPROFILE\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe",
-    [string]$ModelPath = "$env:USERPROFILE\.cache\lm-studio\models\lmstudio-community\gemma-4-12B-it-GGUF\gemma-4-12b-it-Q6_K.gguf",
+    [string]$ModelPath = "$env:USERPROFILE\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf",
     [string]$Alias = "gemma-4-12b-it",
     [string]$HostAddress = "127.0.0.1",
     [int]$Port = 8080,
-    [int]$ContextSize = 131072,
+    [int]$ContextSize = 262144,
     [string]$LogsDir = "$env:USERPROFILE\.hermes\logs",
     [ValidateSet("on", "off", "auto")]
     [string]$Reasoning = "on",
@@ -36,7 +36,7 @@ function Get-AnyGemmaServerProcess {
     Get-CimInstance Win32_Process -Filter "name = 'llama-server.exe'" |
         Where-Object {
             $_.CommandLine -like "*gemma-4-12*-it-*.gguf*" -and
-            $_.CommandLine -like "*--alias*$Alias*"
+            $_.CommandLine -like "*--alias*gemma-4-12b-it*"
         }
 }
 
