@@ -363,6 +363,8 @@ Get-Content "$env:LOCALAPPDATA\hermes\agent-autonomous-codex\active_task.json" |
 
 HermesでXの公開投稿を検索したい場合は、`x_search` を有効にします。
 これはHermes Agentの高度な使い方、公開事例、最新の運用例を調べるときに便利です。
+`x_research` は同じ `x_search` toolset内の複数検索wrapperです。
+単発検索は `x_search`、深掘り調査は `x_research`、試行錯誤つきのレポートはCodex継続runnerへ渡します。
 
 CLI向けに有効化する例:
 
@@ -392,6 +394,30 @@ x_search enabled
 xai-oauth logged in
 ```
 
+terminalから単発検索を試す例:
+
+```powershell
+$python = "$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts\python.exe"
+& $python "$env:LOCALAPPDATA\hermes\scripts\x_search.py" "Hermes Agent x_search" --pretty
+```
+
+terminalから複数検索を試す例:
+
+```powershell
+$python = "$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts\python.exe"
+& $python "$env:LOCALAPPDATA\hermes\scripts\x_research.py" "Hermes Agent Desktop 最新動向" --max-queries 4 --pretty
+```
+
+Codexへ検索語の調整とレポート化まで任せる例:
+
+```powershell
+& "$env:LOCALAPPDATA\hermes\scripts\x-research-codex.ps1" `
+  -Query "Hermes Agent Desktop 最新動向" `
+  -Workdir "$env:USERPROFILE" `
+  -MaxRounds 6 `
+  -RoundTimeout 900
+```
+
 スマホでxAI OAuthを行う場合、認可後に `127.0.0.1` のcallbackへ戻れないことがあります。
 その場合でも、ブラウザのアドレスバーに出たcallback URLに含まれる認可コードとstateを使えば、ローカルで交換できます。
 
@@ -409,7 +435,8 @@ xai-oauth logged in
 1. hermes auth status xai-oauth が logged in
 2. hermes tools list --platform cli で x_search enabled
 3. x_search tool のrequirements checkが true
-4. 軽い検索で success=true と citation が返る
+4. `x_research` が `x_search` toolset内に表示される
+5. 軽い検索で success=true と citation が返る
 ```
 
 ## 9. Gateway外側watchdogを置く

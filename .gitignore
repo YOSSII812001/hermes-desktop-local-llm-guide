@@ -19,3 +19,6 @@ __pycache__/
 Thumbs.db
 Desktop.ini
 
+# Local task notes (working memory, not for publishing)
+tasks/
+

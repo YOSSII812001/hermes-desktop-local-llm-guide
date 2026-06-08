@@ -10,6 +10,7 @@ Discord DM、Obsidian、Codex skills、各種Tool useまで含めた個人メン
 - [Hermes Agent Desktop を個人メンター秘書として運用する設定メモ](docs/personal-mentor-discord-obsidian-gemma4.md)
 - [Hermes Agent Desktop 自律実行とGateway運用メモ](docs/autonomous-codex-gateway-ops.md)
 - [Hermes Agent Desktop セットアップ学びチェックリスト](docs/setup-lessons-checklist.md)
+- [クラウドNemotronを手動切替で使う（Codex不在時の代役）](docs/nemotron-cloud-model.md)
 - [安全な設定サンプル](examples/)
 
 ## AIへ渡すとき
@@ -45,10 +46,11 @@ AIは手順を再現できますが、秘密情報と実ファイルパスはユ
 - 5分cronでCodex自律runnerを動かし、空き時間に宿題を進める
 - 宿題完了時にDiscordへ報告し、Obsidianファイル名へ `[完了] ` を付ける
 - Gatewayの自己再起動を外側Scheduled Taskで安全に実行する
-- xAI OAuthと `x_search` でXの公開投稿を検索する
+- xAI OAuthと `x_search` / `x_research` でXの公開投稿を検索・深掘りする
 - Discord向け内部思考ガードでローカルLLMの漏れを抑える
 - Gateway外側watchdogでGateway停止を復旧する
 - Codex skillsをHermes側でも参照する
+- クラウドのNVIDIA Nemotron(550B)を `/model` で手動切替し、Codex不在時の代役にする
 - `approvals.mode: off` で承認なしのYOLO運用にする
 
 ## 全体構成
@@ -396,6 +398,8 @@ scripts/start-hermes-desktop-with-local-llm.ps1
 scripts/watch-hermes-process-and-stop-gemma.ps1
 scripts/xai_oauth_manual_helper.py
 scripts/x_search.py
+scripts/x_research.py
+scripts/x-research-codex.ps1
 ```
 
 まず `scripts/start-gemma-llama-server.ps1` の先頭を自分の環境に合わせます。
@@ -472,6 +476,18 @@ $python = "$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts\python.exe"
 ```powershell
 & $python .\scripts\x_search.py "Hermes Agent x_search" --pretty
 & $python .\scripts\x_search.py "Hermes Agent x_search" --handle xai --pretty
+```
+
+複数の検索角度で調べたい場合は、`x_research.py` を使います。
+
+```powershell
+& $python .\scripts\x_research.py "Hermes Agent Desktop 最新動向" --max-queries 4 --pretty
+```
+
+検索語の調整とレポート作成までCodexへ任せたい場合は、Codex継続runnerを使います。
+
+```powershell
+.\scripts\x-research-codex.ps1 -Query "Hermes Agent Desktop 最新動向" -Workdir "$env:USERPROFILE" -MaxRounds 6 -RoundTimeout 900
 ```
 
 詳しい手順は `examples/x-search-setup-notes.md` にまとめています。
