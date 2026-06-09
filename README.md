@@ -607,6 +607,247 @@ launcher shortcut
   -> stops llama-server when Hermes exits
 ```
 
+## 18. cronの仕組み：定期的に動くが、通知するとは限らない（人間らしい発火）
+
+Hermesのcronは、ただの「N分ごとに必ずDiscordへ送るタイマー」ではありません。
+「定期的に内部で動くが、実際にユーザーへ声をかけるかは毎回その場で判断する」二段構えになっています。
+
+人間でいうと、5分おきに頭の中で「いま声をかけるべきか？」と考えるけれど、
+たいていは「今はやめておこう」と黙っている、という動き方です。
+この章は、その仕組みを別PCで再現するためのまとめです。
+
+実装の中心スクリプト:
+
+```text
+C:\Users\<USER>\AppData\Local\hermes\scripts\autonomous_trigger_evaluator.py
+```
+
+heartbeatの運用面（通知しすぎ対策）は、次の詳細メモにも要点があります。
+
+- [Hermes Agent Desktop 自律実行とGateway運用メモ](docs/autonomous-codex-gateway-ops.md) の「12. 自律heartbeatは通知しすぎない」
+
+### 18.1 二段構え：起動レイヤーと判断レイヤー
+
+cronは2つのレイヤーに分かれています。
+
+- 起動レイヤー: cron schedulerが、決まった周期でジョブを起動する（例: 15分ごと、5分ごと）
+- 判断レイヤー: 起動したスクリプトが「いま通知する価値があるか」を毎回その場で評価する
+
+起動は機械的に必ず起きますが、通知が飛ぶかどうかは判断レイヤー次第です。
+だから「cronは確かに動いているのに、Discordには何も来ない時間帯がある」という状態が正常になります。
+
+```mermaid
+flowchart TD
+    Tick["cron tick（例: 15分ごと）"] --> Eval["autonomous_trigger_evaluator.py を実行"]
+    Eval --> Read["state.db から当日の直近24発言を読む"]
+    Read --> Score["注意スコアを計算（加点 - 減点）"]
+    Score --> Level["行動レベルを決める"]
+    Level --> Decide{"should_notify ?"}
+    Decide -->|"false"| Silent["wakeAgent:false を出力 → 沈黙（正常終了）"]
+    Decide -->|"true"| Note["短いnoteを出力 → Discordへ配送"]
+```
+
+### 18.2 cronジョブ一覧（実運用例）
+
+実際に動かしているジョブの例です。
+周期も役割もバラバラで、「毎回必ず通知するジョブ」はむしろ少数です。
+
+| ジョブ名 | 周期 | no_agent | 役割 | 毎回通知する? |
+|---|---|---|---|---|
+| mentor-checkin-1100 / 1700 / 2100 | 1日3回（11/17/21時） | false | 当日の会話文脈つきの定時チェックイン | はい（定時なので送る） |
+| autonomous-heartbeat-15m | 15分ごと | true | 注意スコアを評価し、価値があるときだけ声かけ | いいえ（多くは沈黙） |
+| self-improvement-anomaly-watchdog-10m | 10分ごと | true | 異常を検知しCodexへ委任したときだけ通知 | いいえ（異常時のみ） |
+| codex-autonomous-runner-5m | 5分ごと | true | 宿題を1件Codexへ、進捗/完了時だけ報告 | いいえ（動きがある時のみ） |
+| cron-consecutive-error-guard-1m | 1分ごと | true | 2連続errorのジョブを自動停止する監視 | いいえ（停止発生時のみ） |
+| gateway-self-restart-1m | 1分ごと | true | Gateway自己再起動（無効化済。外側Taskで代替） | 無効 |
+
+`no_agent: true` のジョブは、LLMを起こさずスクリプトのstdoutをそのまま使います。
+`no_agent: false` のジョブ（mentor系）は、スクリプト出力を材料にLLMが文章を書きます。
+
+「5分ごとに動くが通知は不確実」という体感は、主に5分周期の `codex-autonomous-runner-5m` と
+15分周期の `autonomous-heartbeat-15m` の組み合わせから来ています。
+このうち「人間らしい判断（注意スコア）」を持つのは heartbeat 側です。
+
+### 18.3 「黙る」を実装する2つの仕組み
+
+「通知しない」を、空振りやバグではなく、明示的な選択肢として持っているのがポイントです。
+実装は2系統あります。
+
+1. wakeAgentゲート（`no_agent: true` のジョブ向け）
+
+スクリプトが `{"wakeAgent": false}` というJSONを出力すると、cron schedulerはLLMを起こさず、
+配送もしません。正常終了（success）として扱われ、Discordには何も出ません。
+通知したいときは、スクリプトが普通のテキスト（短いnote）を出力し、それがそのまま配送されます。
+
+schedulerから見た `no_agent` ジョブの挙動:
+
+```text
+スクリプトのstdout（前後空白除去）  -> その文章をそのままDiscordへ配送
+空のstdout                          -> 沈黙（配送なし、success=True）
+{"wakeAgent": false}                -> 空と同じ扱いで沈黙（success=True）
+非ゼロ終了 / timeout                -> エラー通知として配送（success=False）
+```
+
+2. `[SILENT]` マーカー（LLMを起こすジョブ向け）
+
+LLMを通すジョブ（`no_agent: false`）では、モデルの最終応答が `[SILENT]` だけのとき配送をスキップします。
+「報告することが本当に無いなら `[SILENT]` とだけ返す」という指示で、モデル自身に黙る判断をさせます。
+スクリプト側の `wakeAgent` ゲートと、LLM側の `[SILENT]` は、同じ「言うことが無ければ何もしない」を
+別レイヤーで実現したものです。
+
+### 18.4 人間らしさの核：注意スコア（attention score）
+
+`autonomous_trigger_evaluator.py` は、当日の会話を読んで0〜100の「注意スコア」を出します。
+これが「いま割り込む価値があるか」の数値版です。
+
+材料にするもの:
+
+- `state.db` の `sessions` / `messages` から、当日かつ `source != cron` の発言を最新24件まで
+- assistant / user / tool の発言。秘密情報らしき文字列は読み込み時に伏せ字化
+
+会話文から、語のヒット数でいくつかのシグナルを数えます（例）。
+
+| シグナル | 例に含む語 |
+|---|---|
+| 危険操作(risk) | token / secret / 削除 / 本番 / デプロイ / 課金 / 権限 |
+| 実値の秘密(sensitive) | 実トークン・APIキー・JWTらしき文字列（正規表現一致） |
+| 未完了の依頼(open_loop) | 確認して / 調べて / あとで / 明日 / todo |
+| 詰まり(stuck) | error / 失敗 / 動かない / 詰ま |
+| 進捗(progress) | 完了 / 成功 / 通った / 修正 |
+| 疲労(tired) | 疲れた / 眠い / 休む |
+
+スコアの作り方（加点 - 減点、最後に0〜100へ丸め）:
+
+```text
+加点:
+  risk        1ヒット +35（最大90）
+  open_loop   1ヒット +8 （最大32）
+  stuck       1ヒット +16（最大48）
+  progress    1ヒット +7 （最大28）
+  user発言数  1件    +2 （最大16）
+  tired       あれば +10
+
+減点:
+  集中中（直近10分以内にユーザー発言あり）   -12
+  通知クールダウン（直近45分以内に発火候補） -20
+  同じtopicの反復                            -12
+  静かな時間帯（7時前 または 23時以降）       -25
+```
+
+危険操作の語が一番強く効き、ユーザーが今まさに作業中（集中中）や深夜は大きく減点されます。
+「忙しそうなら遠慮する」「夜中は静かにする」を点数で表したものです。
+
+### 18.5 行動レベルと通知判定
+
+スコアから「行動レベル」を決めます。
+ここで大事なのは、スコアが高いだけでは通知しないことです。
+
+| 行動レベル | 条件 | 通知 |
+|---|---|---|
+| warn | 実値の秘密情報が会話に出た | 安全のため優先的に通知 |
+| assist | スコア75以上、かつ静かな時間帯でない | 条件を満たせば通知 |
+| soft_nudge | スコア55以上、静かな時間帯でない、集中中でない | 条件を満たせば通知 |
+| prepare | スコア30以上 | 内部で準備するだけ（通知しない） |
+| observe | それ以外 | 基本は沈黙 |
+
+`assist` / `soft_nudge` まで来ても、実際に通知する（`should_notify = true`）には、
+次を「すべて」満たす必要があります。1つでも欠けると黙ります。
+
+- 具体的な次の一手（prepared_note）が作れている
+- 静かな時間帯でない
+- 直近の通常会話が新しい（90分以内）
+- 通知クールダウン中でない（直近45分に通知していない）
+- 同じtopicの連続通知でない（120分のクールダウン）
+- 同じ文面の再送でない（180分のクールダウン）
+- 集中中でない（直近10分にユーザー発言がない）
+
+実値の秘密情報が出たとき（warn）だけは別扱いで、静かな時間帯でなく、
+直近30分に発火していなければ、上の細かいクールダウンより優先して注意します。
+「鍵やトークンが平文で出ている」は、見送るより一声かけたほうが安全という判断です。
+
+「価値があるとき」とは、具体的には次のような状況です。
+
+- 失敗ログが出ていて、次の一手を1つに絞れる
+- 進捗があって、検証を1つだけ置ける
+- 未完了の確認が残っていて、閉じるか保留かを決められる
+
+逆に、内容が一般的・繰り返し・古い・具体性がない場合は通知しません。
+
+### 18.6 状態ファイル autonomy_state.json
+
+「さっき通知したばかり」「同じ話題を続けている」を判断するため、評価結果を状態ファイルに残します。
+
+```text
+C:\Users\<USER>\AppData\Local\hermes\cron\autonomy_state.json
+```
+
+主に記録するもの:
+
+- `last_suggested_at` / `last_notified_at`: 最後に通知した時刻（クールダウン判定に使う）
+- `last_notified_note` / `last_notified_note_at`: 最後に送った文面と時刻（同じ文面の再送防止）
+- `recent_topics`: 直近のtopic（最大10件。同じtopic連発の抑制）
+- `last_evaluation`: 直近の評価（スコア、行動レベル、理由、prepared_note）
+
+この状態があるおかげで、cronが再起動しても「さっき言ったばかり」を覚えていられます。
+
+### 18.7 安全装置（暴走と沈黙の両方を守る）
+
+自律発火は便利ですが、放っておくと「通知しすぎ」か「壊れて無言の連投」のどちらかに倒れがちです。
+そこで2つの安全装置を入れています。
+
+- レートリミット連動クールダウン（codex runner側）
+
+外部AI（Codex）がレートリミットに当たったときは、一定時間（既定30分）は呼びにいきません。
+このときはエラー扱いにせず「沈黙の成功」として返し、連続エラーに数えません。
+「呼べないなら呼ばない」を素直に実装したものです。
+
+- 連続エラー監視ガード（cron-consecutive-error-guard-1m）
+
+1分ごとに全cronジョブを点検し、`last_status` が2回連続で `error` のジョブを自動で停止します。
+壊れたジョブが5分おきにDiscordへエラーを撃ち続けるのを止めるための仕組みです。
+この監視自身は本体スクリプトに依存せず、`jobs.json` を直接読み書きします。
+BOM付きでも壊れないよう `utf-8-sig` で読み、書き込みは原子的に行います。
+
+### 18.8 動作確認・デバッグ
+
+評価ロジックだけを手元で試せます。`--no-state-write` を付ければ状態ファイルを汚しません。
+
+```powershell
+$python = "$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts\python.exe"
+
+# 評価結果をJSONで確認（スコア・行動レベル・理由・各シグナルが見える）
+& $python "$env:LOCALAPPDATA\hermes\scripts\autonomous_trigger_evaluator.py" --json --no-state-write
+
+# 内部レポート形式で確認（人が読みやすい要約）
+& $python "$env:LOCALAPPDATA\hermes\scripts\autonomous_trigger_evaluator.py" --debug-report --no-state-write
+```
+
+直近の判断履歴を見る:
+
+```powershell
+Get-Content "$env:LOCALAPPDATA\hermes\cron\autonomy_state.json"
+```
+
+「動いているのに通知が来ない」が正常か確認する（沈黙・配送のログ）:
+
+```powershell
+Get-Content "$env:LOCALAPPDATA\hermes\logs\agent.log" -Tail 200 |
+  Select-String "silent","wakeAgent","delivered to discord"
+```
+
+`silent` や `wakeAgent=false` が並んでいれば、cronは動いていて、判断レイヤーが「今は黙る」を選んでいる状態です。
+これは故障ではなく、設計どおりの動きです。
+
+### 18.9 設計のポイント（なぜ人間らしいのか）
+
+- 起動（機械的）と通知判断（その場評価）を分け、「動いている＝通知が来る」ではない作りにした
+- 「黙る」を `wakeAgent:false` と `[SILENT]` という明示的な出力として持たせた
+- スコアを加点だけでなく減点（集中中・深夜・反復・クールダウン）で作り、「遠慮」を表現した
+- 状態ファイルで「さっき言ったばかり」を覚え、同じ話題・同じ文面の連投を避けた
+- 安全装置で、通知しすぎと、壊れた無言連投の両方を止めた
+
+結果として、「定期的に気にかけてくれるが、用が無いときは静かにしている」秘書のような振る舞いになります。
+
 ## 注意
 
 この手順は、個人のWindowsローカル環境での検証結果です。
