@@ -8,8 +8,9 @@
 1. `README.md`
 2. `docs/personal-mentor-discord-obsidian-gemma4.md`
 3. `docs/autonomous-codex-gateway-ops.md`
-4. `docs/setup-lessons-checklist.md`
-5. `examples/`
+4. `docs/human-like-behavior.md`
+5. `docs/setup-lessons-checklist.md`
+6. `examples/`
 
 ## 学びの棚卸し
 
@@ -55,6 +56,12 @@
 | 幸福プランは義務ではなく、ゆるい羅針盤として扱う | 詳細メモ、SOUL例 | できなかったことを責めない |
 | 抽象的なリマインダーは現実の予定と小タスクへ変換する | 詳細メモ、SOUL例 | 1から3個の行動へ落とす |
 | 秘密情報は公開リポジトリに入れない | README、詳細メモ、env例 | Token、ID、DMチャンネルID、個人ノート本文を載せない |
+| `no_agent: false` cronはLLM稼働が前提 | README 19.4、人間らしさメモ | Desktop停止でllama-serverが落ち、LLMジョブだけ静かに失敗する |
+| pre-runは失敗しても exit 0 ＋ `wakeAgent:false` で黙る | README 19.4、人間らしさメモ | 非ゼロ終了するとschedulerがLLMを起こし二重失敗する |
+| cronスクリプトに引数は渡せない | README 19.2、人間らしさメモ | 挙動切替は env かファイルで行う（`HERMES_CHECKIN_JITTER` 等） |
+| 揺らぎは cron expr でなくスクリプト内 sleep で作る | README 19.2、人間らしさメモ | exprは固定、`time.sleep(random.uniform(0,420))` で配送時刻をゆらす |
+| 書き出しスタイルの乱数ヒントが12Bのテンプレ感に効く | README 19.2、人間らしさメモ | 6種から `random.choice` で1つ、「前回と同じ書き出し禁止」 |
+| フォローアップは構造で1日1回に制限する | README 19.1、人間らしさメモ | `follow_count`/`last_followed_on` の原子更新。LLMの自制に頼らない |
 
 ## まだ人間が入力するもの
 
@@ -85,5 +92,9 @@
 - Gateway外側watchdogが登録され、Gateway停止後に復旧できる
 - Discord内部思考ガードが有効で、漏えいサンプルを投稿前に削れる
 - mentor Cronが当日の通常会話をScript Outputとして受け取れる
+- `daily_digest.py --dry-run` が日記と open_loops の更新内容を出す
+- mentor Cron停止中でも `ensure_llm.py` がllama-serverを起こし、チェックインが復活する
+- `ensure_llm.py` が起動失敗時に exit 0 ＋ `wakeAgent:false` で黙り、`checkin_skips.jsonl` に記録する
+- `gemma_cron_reaper.py` が起こしたllama-serverを回収し、VRAMが空く
 - `hermes skills list` でCodex skillsが見える
 - Discord向けToolsetで危険なToolを開けていない

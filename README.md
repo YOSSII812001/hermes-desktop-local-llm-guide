@@ -10,6 +10,7 @@ Discord DM、Obsidian、Codex skills、各種Tool useまで含めた個人メン
 - [Hermes Agent Desktop を個人メンター秘書として運用する設定メモ](docs/personal-mentor-discord-obsidian-gemma4.md)
 - [Hermes Agent Desktop 自律実行とGateway運用メモ](docs/autonomous-codex-gateway-ops.md)
 - [Hermes Agent Desktop セットアップ学びチェックリスト](docs/setup-lessons-checklist.md)
+- [Hermes Agent Desktop を人間らしくする設定メモ（記憶・ゆらぎ・調子・文体）](docs/human-like-behavior.md)
 - [クラウドNemotronを手動切替で使う（Codex不在時の代役）](docs/nemotron-cloud-model.md)
 - [安全な設定サンプル](examples/)
 
@@ -51,6 +52,10 @@ AIは手順を再現できますが、秘密情報と実ファイルパスはユ
 - Gateway外側watchdogでGateway停止を復旧する
 - Codex skillsをHermes側でも参照する
 - クラウドのNVIDIA Nemotron(550B)を `/model` で手動切替し、Codex不在時の代役にする
+- 日次ダイジェストで当日の会話を要約し、未解決トピックを翌日にそっとフォローする
+- チェックインの送信タイミングを数分ゆらし、曜日と時間帯に合わせて声をかける
+- 疲労の傾向を数日分追跡し、提案の量とトーンを自動で控えめにする
+- チェックイン直前に `llama-server` を自動起動し、使い終わったら自動で回収する
 - `approvals.mode: off` で承認なしのYOLO運用にする
 
 ## 全体構成
@@ -847,6 +852,178 @@ Get-Content "$env:LOCALAPPDATA\hermes\logs\agent.log" -Tail 200 |
 - 安全装置で、通知しすぎと、壊れた無言連投の両方を止めた
 
 結果として、「定期的に気にかけてくれるが、用が無いときは静かにしている」秘書のような振る舞いになります。
+
+この「黙る判断」を土台に、記憶・ゆらぎ・調子で人間らしさをもう一段深めたのが次の章です。
+
+- [19. 人間らしさを一段深める（記憶・ゆらぎ・調子）](#19-人間らしさを一段深める記憶ゆらぎ調子)
+
+## 19. 人間らしさを一段深める（記憶・ゆらぎ・調子）
+
+第18章で「いつ声をかけるか」を作りました。
+この章は、その上に「何を覚えていて、いつ・どんな調子で声をかけるか」を足した話です。
+
+結論から言うと、4本柱（記憶とフォローアップ／時間のゆらぎ／調子への寄り添い／会話の自然さ）を、
+**できるだけLLMを呼ばずルールベースで**実装しました。
+12Bのローカルモデルはテンプレ感が出やすいので、乱数や状態ファイルで揺さぶる方が安く確実だったからです。
+
+チェックインのpre-run scriptは、最終的に次の順番でScript Outputを組み立てます。
+
+```mermaid
+flowchart TD
+    Start["mentor-checkin cron 起動"] --> Jitter["0〜7分のランダムsleep（配送時刻をゆらす）"]
+    Jitter --> Llm["ensure_llm.py：llama-server を起こす（落ちていれば）"]
+    Llm --> Ctx["当日の通常会話を文脈として注入"]
+    Ctx --> Day["## いまの時間と曜日（曜日別ヒント）"]
+    Day --> Open["## 書き出しスタイルのヒント（6種からランダム1つ）"]
+    Open --> Loop["## 先日からの続き（open_loops から最大1件）"]
+    Loop --> Mood["## 最近の調子（疲労傾向のトーン調整）"]
+    Mood --> Out["これらを材料にLLMが1通を書く"]
+```
+
+新スクリプトの共通基盤は `scripts\checkin_common.py` です。
+秘密マスクの正規表現・語彙辞書・原子的な書き込み・`state.db` の読み取りをここに集約しています。
+
+詳しいセットアップ（cron登録コマンド、jobs.json への prompt 追記例、SOUL.md / SKILL.md への追記全文、状態ファイルのサンプル）は、次の詳細メモにまとめました。
+
+- [Hermes Agent Desktop を人間らしくする設定メモ（記憶・ゆらぎ・調子・文体）](docs/human-like-behavior.md)
+
+### 19.1 日次ダイジェストと未解決トピック（記憶）
+
+夜に1回、その日の会話を要約して翌日に活かす仕組みです。
+
+`scripts\daily_digest.py` を `no_agent` cron（`35 21 * * *`）で回します。
+LLMは使わず、`state.db` の当日会話（user と assistant、cron発話は除く）をルールベースで要約し、
+2つのファイルを更新します。
+
+- `memories\diary\YYYY-MM-DD.md`: その日の日記（秘密はマスク済み）
+- `cron\open_loops.json`: 未解決トピックの一覧
+
+open_loops は、トピック単位で生まれて消えていきます。
+
+- 起こす: 「確認して」「あとで」「続き」などを含むユーザー発話から `open` を立てる
+- 閉じる: 「完了」「成功」などの進捗語を検出したら `closed`
+- しつこさ防止: **3回フォローしても反応が無ければ `closed`**。14日経った古いループは剪定
+
+翌日のチェックインでは `daily_conversation_context.py` が、日記の直近1〜2日の抜粋と open_loops から
+**1件だけ**選び、`## 先日からの続き` として注入します。
+選んだ瞬間に `follow_count` を1つ増やし `last_followed_on` を当日に更新するので、
+**同じ日の2回目のチェックインには出ません**。1日1フォローが構造で保証される形です。
+
+候補になる条件は「`status` が open ／今日まだフォローしていない ／ `follow_count` が3未満 ／
+最後に触れたのが1〜7日前」です。
+
+LLMには「自然に馴染むときだけ、ちょうど1件だけ続きに触れる。セクション名やScript Outputの存在には言及しない」とだけ指示しています。
+
+### 19.2 時間のゆらぎと曜日
+
+毎回きっかり同じ時刻に同じ書き出しで来ると、機械っぽさが出ます。
+そこを2つの仕掛けでほぐしました。
+
+まず配送時刻のゆらぎです。
+pre-run scriptの冒頭で `time.sleep(random.uniform(0, 420))`（0〜7分）を入れています。
+ここで大事なのは、**cronのexpr自体は変えていない**ことです。
+cron expr（`* * * * *` の世界）は分単位の指定が中心で、「11時ちょうどから数分のランダムなずれ」は表現しにくい。
+だからexprは固定したまま、スクリプト内のsleepで配送時刻だけを揺らしています。
+手動検証で待ちたくないときは `--no-jitter` か env `HERMES_CHECKIN_JITTER=0` で無効化します。
+cronはスクリプトに引数を渡せないので、cron経由で切るときのノブはenvだけです。
+
+次に `## いまの時間と曜日` セクションです。
+曜日別のヒント（月＝週の立ち上がり、金＝週末前、土日＝休日トーン、で計7種）と、
+朝／夕方前／夜の時間帯を1〜2行で渡します。
+
+そして `## 書き出しスタイルのヒント`。
+6種類（観察から／ねぎらいから／前回の続きから／時候から／結論先出し／報告調）から
+`random.choice` で**1つだけ**選んで注入し、「前回と同じ書き出しは禁止」と添えます。
+地味ですが、**12Bのテンプレ感を崩すのに一番効いた**のはこれでした。
+モデルの自制に任せず、乱数が書き出しを強制的に変えてくれるからです。
+
+### 19.3 調子トラッキング（18.4の減点群の拡張）
+
+「最近ちょっと疲れてそう」を、点数ではなくトーンに反映する仕組みです。
+
+15分heartbeatの `autonomous_trigger_evaluator.py` に `update_mood_state()` を足しました。
+評価のたびに `cron\mood_state.json` へ、日別の tired / stuck / progress / user_messages / max_score の
+当日maxを積みます（14日保持、原子的書き込み）。
+
+`load_fatigue_trend()` は、直近3日のうち2日以上で tired が立っていたら `fatigue_trend=true` とし、
+evaluate() に**減点だけ**を足します（fatigue_penalty=8）。
+これは [18.4](#184-人間らしさの核注意スコアattention-score) で説明した減点群（集中中-12／クールダウン-20／反復-12／深夜-25）に
+**もう1つ仲間を増やしただけ**です。
+スコアの加点式も、各しきい値も、`should_notify` の7条件ANDも触っていません。
+「疲れてそうな時期は、少し遠慮する」を既存の枠組みの中で表現しています。
+
+チェックイン側は `## 最近の調子` セクションで、
+「ここ数日は疲労サインが続く→提案は1つ・低エネルギー寄り」「昨日は前進が多い→軽い確認で十分」を
+ルールベースで1〜2行だけ渡します。
+
+### 19.4 no_agent=false cron はLLM可用性が前提という罠
+
+この章で一番の実体験ネタは、ここです。
+
+今回、`mentor-checkin` の3ジョブが毎回 `RuntimeError: Connection error.` で失敗し、
+⚠️ がそのままDiscordへ飛んでくる状態になりました。
+
+原因はシンプルでした。
+`llama-server` は、Hermes Desktopを閉じるとVRAM配慮で自動停止する設計です。
+ところがバックグラウンドのGateway cronは動き続ける。
+つまり**LLMを起こすジョブ（`no_agent: false`）だけが、相手が居なくて静かに死ぬ**わけです。
+`no_agent: true` のジョブはLLM不要なので無事に動く分、かえって気づきにくいのが厄介でした。
+
+解法は、チェックインの直前にllama-serverを起こす小さなスクリプト `scripts\ensure_llm.py` です。
+
+- pre-runで `/health` をプローブする（llama.cppは 200=ready ／ 503=ロード中）
+- 落ちていれば、既存の起動用PS1を呼ぶ
+- ready になるまで2秒間隔でポーリング（最大240秒）
+- **自分が起動したときだけ** `cron\llama_started_by_cron.json` にマーカーを書く
+
+起動に失敗したとき（GPUが他で埋まっている等）は、stdoutに `{"wakeAgent": false}` を出して **exit 0** で終わります。
+そのチェックインは1回だけ静かに見送り（`cron\checkin_skips.jsonl` に記録）、秘書が一度連絡を逃した程度で済ませます。
+
+ここで一番大事な学びは **exit 0 を死守する**ことでした。
+非ゼロで落ちると、scheduler が「Script Error」をLLMに知らせようとして、結局LLMを起こしにいき二重で失敗します。
+「LLMが居ないから諦める」スクリプトが、諦め方を間違えてLLMを呼ぶ、という間抜けな自爆です。
+だから失敗は必ず exit 0 ＋ `wakeAgent:false` で黙らせます。
+
+起こした後片付けは `scripts\gemma_cron_reaper.py`（`no_agent` cron、`*/10 * * * *`）が担当します。
+マーカーを見て、起動から30分超 かつ Hermes Desktopが非実行なら、停止用PS1で回収します。
+Desktopが動いているなら、マーカーを消して所有権をDesktop側のwatcherへ返します。
+回収までの待ち時間は env `HERMES_REAPER_IDLE_MINUTES` で変えられます。
+
+reaperはDiscordへは常に沈黙する設計なので、代わりに毎回の判断を `cron\reaper_log.jsonl` に1行ずつ残します。
+停止後はプロセスが本当に消えたかを最大15秒確認し、空振りならマーカーを残して次回に再試行します。
+沈黙する家事スクリプトは、足あとが無いと「動いたのか・サボったのか・失敗したのか」が後から分かりません。
+
+なお `wakeAgent` ゲートは `no_agent: false` のジョブでも有効でした（scheduler実装で確認済み）。
+これが効くおかげで、LLMジョブでも「黙ってスキップ」が成立します。
+
+### 19.5 動作確認
+
+各スクリプトは手元で単発実行できます。
+cron登録ジョブを1回だけ流したいときは `hermes cron run <job_id|name>` で、次の毎分tickに合わせて走ります。
+
+```powershell
+$python = "$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts\python.exe"
+$scripts = "$env:LOCALAPPDATA\hermes\scripts"
+
+# 翌日チェックイン用の文脈を、待ち時間なしで確認
+& $python "$scripts\daily_conversation_context.py" --no-jitter
+
+# 日次ダイジェストを、ファイルを書かずに試す
+& $python "$scripts\daily_digest.py" --dry-run
+
+# llama-server の起動状態だけ確認
+& $python "$scripts\ensure_llm.py" --status
+```
+
+reaperの回収をその場で試したいときは、待ち時間を0にして流します。
+
+```powershell
+$env:HERMES_REAPER_IDLE_MINUTES = "0"
+& $python "$scripts\gemma_cron_reaper.py"
+```
+
+cronジョブとして仕込んだものは `hermes cron run <name>` で叩けます。
+切り替えフラグはcron経由では渡せないので、挙動を変える検証はenvかファイルで行います。
 
 ## 注意
 

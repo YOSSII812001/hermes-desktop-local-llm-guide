@@ -51,6 +51,58 @@
       "enabled_toolsets": null,
       "workdir": null,
       "profile": null
+    },
+    {
+      "id": "dailydigest01",
+      "name": "daily-digest-2135",
+      "prompt": "",
+      "skills": [],
+      "skill": "",
+      "script": "daily_digest.py",
+      "no_agent": true,
+      "context_from": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "35 21 * * *",
+        "display": "35 21 * * *"
+      },
+      "schedule_display": "35 21 * * *",
+      "repeat": {
+        "times": null,
+        "completed": 0
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "deliver": "discord",
+      "enabled_toolsets": null,
+      "workdir": null,
+      "profile": null
+    },
+    {
+      "id": "gemmareaper01",
+      "name": "gemma-cron-reaper-10m",
+      "prompt": "",
+      "skills": [],
+      "skill": "",
+      "script": "gemma_cron_reaper.py",
+      "no_agent": true,
+      "context_from": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "*/10 * * * *",
+        "display": "*/10 * * * *"
+      },
+      "schedule_display": "*/10 * * * *",
+      "repeat": {
+        "times": null,
+        "completed": 0
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "deliver": "discord",
+      "enabled_toolsets": null,
+      "workdir": null,
+      "profile": null
     }
   ]
 }

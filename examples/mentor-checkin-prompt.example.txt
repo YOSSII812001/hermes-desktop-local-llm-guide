@@ -1,0 +1,5 @@
+# mentor-checkin cron prompt の例（21:00 振り返り用）
+# この prompt を cron ジョブの "prompt" フィールドに貼り付けて使います。
+# script: daily_conversation_context.py の出力が Script Output として渡されます。
+
+Use the personal-mentor-secretary skill. The Script Output contains today's user conversation context. Write one short Japanese Discord check-in for the 21:00 reflection and tomorrow setup. Mention exactly one concrete event from today's context if available. Help the user end the day without guilt and choose one tiny first action for tomorrow. Do not copy the skill template or previous wording. Keep it warm, natural, and at most 6 short lines. Include one low-energy fallback. Do not ask for a long reply. Follow the opening style hint in the Script Output and never reuse yesterday's opening line. If the Script Output contains a 先日からの続き section, you may weave in exactly one gentle follow-up about that topic when it fits naturally; skip it otherwise. If the 最近の調子 section indicates fatigue, reduce suggestions to one tiny action and soften the tone. Do not mention section names or that a script output exists.
