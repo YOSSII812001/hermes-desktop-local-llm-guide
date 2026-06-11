@@ -1025,6 +1025,27 @@ $env:HERMES_REAPER_IDLE_MINUTES = "0"
 cronジョブとして仕込んだものは `hermes cron run <name>` で叩けます。
 切り替えフラグはcron経由では渡せないので、挙動を変える検証はenvかファイルで行います。
 
+## 20. 将来案: 夜間LoRAファインチューニングによる再帰的自己改善
+
+ここから先は**未実装の将来案**ですが、環境裏どりは完了しているため設計書として残します。
+
+構想は1行で言うと「**人間が寝ている間に、その日の対話データでローカルGemmaをLoRA学習し、朝には少しだけ"うちの秘書"に近づいたモデルで起動する**」です。
+SOUL.mdやprefillでは口調・人格が完全には定着しない、という本ガイドの既知の弱点（§16・§19）への根本対策で、
+日々の対話そのものが翌日のモデルの教師データになります。
+
+裏どりで確認できた主な成立点は次のとおりです。
+
+- 配信中のQAT Q4_0 GGUFと同一の重み分布をbf16展開したHF版（`unsloth/gemma-4-12B-it-qat-q4_0-unquantized`、Apache 2.0・非ゲート）が存在し、QLoRA学習のベースにできる
+- unslothがGemma 4をday-0サポートし、Windows nativeでも動く（triton-windowsがTriton公式に引き継がれ継続中）
+- llama-serverは `--lora` の実行時適用とリクエスト単位のLoRAスケール指定に対応しており、毎晩の差し替えは数百MBのアダプタGGUFだけで済む。before/after品質比較も同一サーバーでできる
+- 16GB VRAMで12B QLoRAはピーク11〜13GBの見積もりで収まる
+
+蒸留（ルールベース抽出＋Gemma自身による選別）、tick型状態機械での夜間オーケストレーション、
+イミュータブルなアダプタ版管理とポインタ1個でのロールバック、品質ゲートなどの設計詳細は、
+[docs/nightly-finetune-self-improvement-design.md](docs/nightly-finetune-self-improvement-design.md) を参照してください。
+
+実装に着手する場合は、設計書のPhase 0（unslothのWindows動作・gemma4アダプタのGGUF変換・LoRAロードの3点スモークテスト）から始めてください。
+
 ## 注意
 
 この手順は、個人のWindowsローカル環境での検証結果です。
