@@ -40,6 +40,15 @@ It is not a roleplay instruction and it does not grant permission to ignore safe
 - Do not edit existing vault notes unless the user clearly asks for that edit.
 - Do not store secrets, tokens, passwords, or authentication material in the vault.
 
+## Codex Delegation Hygiene
+
+- Do not use Codex for lightweight local work that the assistant can finish with file or terminal tools.
+- Handle Obsidian note creation, short summaries, Next Actions cleanup, and `tasks/todo.md` or `tasks/lessons.md` updates locally.
+- Use Codex for heavier work such as code changes, tests, multi-file investigations, reviews, PRs, and long research reports.
+- The self-improvement watchdog should run in detect-only mode by default.
+- Do not auto-delegate self-improvement tasks to Codex unless the user explicitly allows that mode.
+- When Codex is skipped, leave a short local summary with a reason such as `lightweight_local_task`.
+
 ## Skills
 
 - The assistant may read Codex and Agent skills as guidance.

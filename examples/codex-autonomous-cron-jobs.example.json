@@ -27,6 +27,32 @@
       "profile": null
     },
     {
+      "id": "selfimpwatch10m",
+      "name": "self-improvement-anomaly-watchdog-10m",
+      "prompt": "",
+      "skills": [],
+      "skill": "",
+      "script": "hermes_self_improvement_watchdog_detect_only.py",
+      "no_agent": true,
+      "context_from": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "*/10 * * * *",
+        "display": "*/10 * * * *"
+      },
+      "schedule_display": "*/10 * * * *",
+      "repeat": {
+        "times": null,
+        "completed": 0
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "deliver": "discord",
+      "enabled_toolsets": null,
+      "workdir": null,
+      "profile": null
+    },
+    {
       "id": "gwselfrestart1m",
       "name": "gateway-self-restart-1m",
       "prompt": "",

@@ -45,6 +45,7 @@ AIは手順を再現できますが、秘密情報と実ファイルパスはユ
 - Obsidian Vaultを参照し、成果物を専用フォルダへ出す
 - Obsidianの `hermes/homework` にNext Actionsを宿題としてためる
 - 5分cronでCodex自律runnerを動かし、空き時間に宿題を進める
+- 軽いローカル作業はHermes自身で処理し、Codexのコンテキスト消費を抑える
 - 宿題完了時にDiscordへ報告し、Obsidianファイル名へ `[完了] ` を付ける
 - Gatewayの自己再起動を外側Scheduled Taskで安全に実行する
 - xAI OAuthと `x_search` / `x_research` でXの公開投稿を検索・深掘りする
@@ -661,13 +662,16 @@ flowchart TD
 |---|---|---|---|---|
 | mentor-checkin-1100 / 1700 / 2100 | 1日3回（11/17/21時） | false | 当日の会話文脈つきの定時チェックイン | はい（定時なので送る） |
 | autonomous-heartbeat-15m | 15分ごと | true | 注意スコアを評価し、価値があるときだけ声かけ | いいえ（多くは沈黙） |
-| self-improvement-anomaly-watchdog-10m | 10分ごと | true | 異常を検知しCodexへ委任したときだけ通知 | いいえ（異常時のみ） |
+| self-improvement-anomaly-watchdog-10m | 10分ごと | true | 既定は検知専用。Codex自動委任は明示許可時のみ | いいえ（検知時のみ） |
 | codex-autonomous-runner-5m | 5分ごと | true | 宿題を1件Codexへ、進捗/完了時だけ報告 | いいえ（動きがある時のみ） |
 | cron-consecutive-error-guard-1m | 1分ごと | true | 2連続errorのジョブを自動停止する監視 | いいえ（停止発生時のみ） |
 | gateway-self-restart-1m | 1分ごと | true | Gateway自己再起動（無効化済。外側Taskで代替） | 無効 |
 
 `no_agent: true` のジョブは、LLMを起こさずスクリプトのstdoutをそのまま使います。
 `no_agent: false` のジョブ（mentor系）は、スクリプト出力を材料にLLMが文章を書きます。
+
+Codex利用量を抑えたい場合は、軽いObsidian作業や短い要約をCodexへ投げません。
+具体的なガードは [自律実行とGateway運用メモ](docs/autonomous-codex-gateway-ops.md#codex利用量ガードを入れる) を参照してください。
 
 「5分ごとに動くが通知は不確実」という体感は、主に5分周期の `codex-autonomous-runner-5m` と
 15分周期の `autonomous-heartbeat-15m` の組み合わせから来ています。
@@ -805,6 +809,13 @@ C:\Users\<USER>\AppData\Local\hermes\cron\autonomy_state.json
 外部AI（Codex）がレートリミットに当たったときは、一定時間（既定30分）は呼びにいきません。
 このときはエラー扱いにせず「沈黙の成功」として返し、連続エラーに数えません。
 「呼べないなら呼ばない」を素直に実装したものです。
+
+- Codex利用量ガード（agent-pipeline / self-improvement watchdog側）
+
+Obsidianメモ作成、短い要約、`tasks/todo.md` 追記のような軽い作業は、Hermes自身のfile/terminal toolで処理します。
+`agent-pipeline.ps1` は該当タスクを `SKIPPED_CODEX_LIGHTWEIGHT_LOCAL_TASK` で止め、summary JSONにskip理由を残します。
+self-improvement watchdogは、既定では `--no-delegate` の検知専用wrapperから呼びます。
+Codexへ自動委任したい場合は、別jobまたは明示フラグで人間が許可します。
 
 - 連続エラー監視ガード（cron-consecutive-error-guard-1m）
 
