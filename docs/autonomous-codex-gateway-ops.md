@@ -75,6 +75,71 @@ HermesからCodexを呼ぶ入口は、固定のPowerShell wrapperにします。
 - prompt全文や秘密情報をログに残さないよう、redactionを入れる
 - ログ保持は14日程度にする
 
+### Codex利用量ガードを入れる
+
+Codexは、コード修正、テスト、調査、PR作成のような重い作業に使います。
+一方で、軽いローカル作業までCodexへ投げると、コンテキストと利用量をすぐ消費します。
+
+Codexへ投げない作業:
+
+- Obsidianの宿題ノートや短いメモを作る
+- 短い要約やNext Actionsを整理する
+- `tasks/todo.md` / `tasks/lessons.md` に追記する
+- 日時、status、ログ末尾、設定ファイルの存在を確認する
+- Hermes自身のfile toolやterminal toolで完結する単純作業
+
+Codexへ投げてよい作業:
+
+- コード変更とテストが必要な修正
+- 複数ファイルを読む設計判断
+- 失敗ログからの原因調査
+- GitHub issue / PR / review を伴う作業
+- 長い調査やレポート化が必要な作業
+
+`agent-pipeline.ps1` 側では、軽いローカル作業を検知したらCodexを起動せずに終了します。
+summary JSONには、skip理由を残します。
+
+```powershell
+# agent-pipeline.ps1 の入口近くに置く安全弁の例です。
+$LightweightLocalTask =
+  $Prompt -match '(?i)(obsidian|homework|tasks[/\\](todo|lessons)\.md|short summary|log tail|status check|軽い要約|短い要約)' -and
+  $Prompt -notmatch '(?i)(implement|bug|test|build|review|pull request|PR|refactor|実装|修正|検証)'
+
+if ($LightweightLocalTask) {
+  $summary = [ordered]@{
+    skipped = $true
+    skip_reason = "lightweight_local_task"
+    agent = "codex"
+    output = "SKIPPED_CODEX_LIGHTWEIGHT_LOCAL_TASK"
+  }
+
+  $summary | ConvertTo-Json -Depth 8 | Set-Content -Encoding UTF8 $SummaryPath
+  Write-Output "SKIPPED_CODEX_LIGHTWEIGHT_LOCAL_TASK"
+  exit 0
+}
+```
+
+skip時の期待値:
+
+- Codex CLIプロセスが起動しない
+- stdoutに `SKIPPED_CODEX_LIGHTWEIGHT_LOCAL_TASK` が出る
+- summary JSONに `skipped: true` と `skip_reason: lightweight_local_task` が残る
+- stderr末尾に新しい `tokens used` が増えない
+
+利用量を調べるときは、`agent-pipeline\logs` のsummary JSONとstderr末尾を見ます。
+
+```powershell
+Get-ChildItem "$env:LOCALAPPDATA\hermes\agent-pipeline\logs\*.summary.json" |
+  Sort-Object LastWriteTime -Descending |
+  Select-Object -First 5 |
+  ForEach-Object { Get-Content $_.FullName | ConvertFrom-Json }
+
+Get-ChildItem "$env:LOCALAPPDATA\hermes\agent-pipeline\logs\*.stderr.txt" |
+  Sort-Object LastWriteTime -Descending |
+  Select-Object -First 5 |
+  ForEach-Object { Select-String -Path $_.FullName -Pattern "tokens used" }
+```
+
 動作確認:
 
 ```powershell
@@ -487,7 +552,70 @@ Get-Content "$env:LOCALAPPDATA\hermes\logs\gateway-watchdog.log" -Tail 50
 - Cron tickerが開始する
 - `hermes gateway status` でGateway process runningになる
 
-## 10. Discord内部思考ガードを入れる
+## 10. self-improvement watchdogは検知専用にする
+
+self-improvement watchdogは便利ですが、既定でCodexへ自動委任すると利用量が読みにくくなります。
+Codex利用量を抑えたい運用では、まず検知専用にします。
+
+Hermes cron jobはスクリプト引数を渡しにくいので、検知専用wrapperを1つ置きます。
+
+配置例:
+
+```text
+%LOCALAPPDATA%\hermes\scripts\hermes_self_improvement_watchdog_detect_only.py
+```
+
+このリポジトリのサンプルをコピーします。
+
+```powershell
+Copy-Item `
+  ".\scripts\hermes_self_improvement_watchdog_detect_only.py" `
+  "$env:LOCALAPPDATA\hermes\scripts\hermes_self_improvement_watchdog_detect_only.py"
+```
+
+wrapperは、同じフォルダにある `hermes_self_improvement_watchdog.py` を
+`--no-delegate` 付きで呼びます。
+元スクリプトがまだ無い環境では、`wakeAgent:false` のJSONを返して静かに終了します。
+
+`jobs.json` では、watchdog jobの `script` をwrapperへ向けます。
+
+```json
+{
+  "name": "self-improvement-anomaly-watchdog-10m",
+  "script": "hermes_self_improvement_watchdog_detect_only.py",
+  "no_agent": true,
+  "deliver": "discord"
+}
+```
+
+期待する挙動:
+
+- 異常がなければ `wakeAgent:false` で黙る
+- 異常を見つけても、既定ではCodexへ委任しない
+- 自動委任を使う場合は、別jobか明示フラグで人間が許可する
+- Discordには、実際に通知すべき検知結果だけを短く送る
+
+確認コマンド:
+
+```powershell
+$python = "$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts\python.exe"
+
+& $python "$env:LOCALAPPDATA\hermes\scripts\hermes_self_improvement_watchdog_detect_only.py"
+
+Get-Content "$env:LOCALAPPDATA\hermes\cron\jobs.json" |
+  ConvertFrom-Json |
+  Select-Object -ExpandProperty jobs |
+  Where-Object name -eq "self-improvement-anomaly-watchdog-10m" |
+  Select-Object name, script, no_agent, enabled
+```
+
+wrapperの構文確認:
+
+```powershell
+py -m py_compile .\scripts\hermes_self_improvement_watchdog_detect_only.py
+```
+
+## 11. Discord内部思考ガードを入れる
 
 ローカルLLMをDiscordへつなぐ場合、最終応答に内部メモが混ざることがあります。
 `display.platforms.discord.streaming: false` でも、最終応答そのものに混ざる場合があります。
@@ -533,7 +661,7 @@ plugins:
 - `platform=cli` では処理しない
 - Gateway再起動後にDiscord connectedになる
 
-## 11. Cron check-inへ会話文脈を渡す
+## 12. Cron check-inへ会話文脈を渡す
 
 Hermes Cronは新しいisolated sessionで動くため、通常会話の履歴を自動では読みません。
 個人メンター秘書のcheck-inを自然にしたい場合は、pre-run scriptで当日の会話文脈を渡します。
@@ -565,7 +693,7 @@ cron job側:
 Windowsでは、親プロセス側のdecode方式にも注意します。
 script stdoutはHermes側の読み方に合わせます。
 
-## 12. 自律heartbeatは通知しすぎない
+## 13. 自律heartbeatは通知しすぎない
 
 15分ごとの自律heartbeatは便利ですが、通知しすぎるとノイズになります。
 スコアが高いだけで送らず、「いま割り込む価値があるか」を見る設計にします。
@@ -595,7 +723,7 @@ cron:
 `[SILENT]` の場合はDiscordへ配送しないようにします。
 ログでは、cron outputと `agent.log` の delivery skip を確認します。
 
-## 13. context圧縮は早すぎたらthresholdを見る
+## 14. context圧縮は早すぎたらthresholdを見る
 
 256K context運用で `compression.threshold: 0.5` にすると、約131K tokenで圧縮が始まります。
 長いデバッグ会話では早く感じることがあります。
@@ -618,7 +746,7 @@ $env:HERMES_CONFIG_DIR = "$env:LOCALAPPDATA\hermes"
 & "$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts\hermes.exe" gateway restart
 ```
 
-## 14. よくある失敗
+## 15. よくある失敗
 
 ### 完了報告がDiscordへ届かない
 
@@ -687,7 +815,7 @@ Discord投稿前の `transform_llm_output` フィルタを使います。
 再発した場合は、漏れた実文を短く抽出し、マーカーへ追加します。
 長い漏えい文や個人情報は保存しません。
 
-## 15. 完了条件
+## 16. 完了条件
 
 別PCで再現できたと判断する条件です。
 
@@ -699,13 +827,15 @@ Discord投稿前の `transform_llm_output` フィルタを使います。
 - Obsidian宿題ノートに本文タグと `[完了] ` prefixが付く
 - Gateway自己再起動要求を作ると、外側Scheduled Taskが安全なタイミングで再起動する
 - 再起動前後でGateway PIDが変わる
+- 軽いローカル作業は `SKIPPED_CODEX_LIGHTWEIGHT_LOCAL_TASK` でCodex起動前に止まる
+- self-improvement watchdogは既定で検知専用になり、Codexへ自動委任しない
 - `x_search` を使う場合、xAI OAuthがlogged inになり、`x_search` がenabledになる
 - Gateway外側watchdogを使う場合、Gateway停止後に既存taskから復旧できる
 - Discord内部思考ガードを使う場合、漏えいサンプルが投稿前に削れる
 - mentor cronを使う場合、通常会話文脈がScript Outputとして渡る
 - 自律heartbeatを使う場合、不要な通知は `[SILENT]` で止まる
 
-## 16. 公開repoへ入れないもの
+## 17. 公開repoへ入れないもの
 
 次は絶対にGitHubへ入れません。
 

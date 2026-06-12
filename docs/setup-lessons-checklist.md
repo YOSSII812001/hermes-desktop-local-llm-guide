@@ -34,7 +34,9 @@
 | Discordに開けるToolは絞る | 詳細メモ、config例 | DMでは `terminal` や `code_execution` を開けない |
 | Obsidian Vault参照と出力先は分ける | 詳細メモ、SOUL例 | 新規成果物は `Obsidian Vault\hermes` へ出す |
 | Next ActionsはObsidian宿題キューへ積む | 自律実行メモ | `hermes\homework` に1件1ファイルで置く |
+| 軽いローカル作業はCodexへ投げない | 自律実行メモ | Obsidianメモ、短い要約、tasks追記はHermes自身で処理する |
 | Codex自律runnerはactive taskを上書きしない | 自律実行メモ | `active_task.json` がrunningなら新規開始を止める |
+| self-improvement watchdogは既定で検知専用にする | 自律実行メモ、cron例 | `hermes_self_improvement_watchdog_detect_only.py` をcronへ向ける |
 | 宿題完了時はDiscordへ報告する | 自律実行メモ | cron outputと `agent.log` の `delivered to discord` まで見る |
 | Obsidian完了表示はfrontmatter、本文、ファイル名で行う | 自律実行メモ | `#hermes/homework/done` と `[完了] ` prefixを確認する |
 | Gateway自己再起動は外側Scheduled Taskで行う | 自律実行メモ | `running` だけでなく再起動前後のPID差分を見る |
@@ -85,8 +87,10 @@
 - DM内の `/sethome` が完了する
 - Obsidianの `hermes` フォルダへ読み書きできる
 - Obsidianの `hermes\homework` に `status: queued` の宿題ノートを置ける
+- 軽いローカル作業がCodex起動前にskipされ、summary JSONに `lightweight_local_task` が残る
 - `codex-autonomous-runner-5m` が宿題を拾い、Codexへ送信済み通知を出す
 - 宿題完了時にDiscord配送ログとObsidianの `[完了] ` prefixを確認できる
+- `self-improvement-anomaly-watchdog-10m` が検知専用wrapperを使い、既定ではCodexへ自動委任しない
 - Gateway自己再起動要求で、外側Scheduled TaskがPID差分付きで再起動できる
 - `x_search` を有効化し、xAI OAuthが `logged in` になる
 - Gateway外側watchdogが登録され、Gateway停止後に復旧できる
