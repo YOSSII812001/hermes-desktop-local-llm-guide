@@ -17,7 +17,14 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from checkin_common import atomic_write_json, load_json  # noqa: E402
+from checkin_common import (  # noqa: E402
+    atomic_write_json,
+    emotion_sample,
+    load_current_focus,
+    load_json,
+    moment_seed,
+    mood_today,
+)
 import ensure_llm  # noqa: E402
 
 
@@ -37,13 +44,21 @@ WEEKDAY_HINTS = {
     6: "休日の終わり。明日へ軽く備える程度で、急かさないでください。",
 }
 
+# Each style is tagged with the emotional registers it sits well with, so the
+# opening can be chosen to match the inner state (see render_opening_hint).
 OPENING_STYLES = [
-    "今日の出来事や状況への、さりげない観察から入る",
-    "ねぎらいのひとことから入る",
-    "前回の話の続きに、さらりと触れるところから入る",
-    "季節や時間帯の感覚に、ごく短く触れてから本題に入る",
-    "結論や提案を先に置いてから、理由を短く添える",
-    "問いかけではなく、そっと隣に置くような報告調で入る",
+    {"style": "今日の出来事や状況への、さりげない観察から入る", "registers": ["calm", "crisp"]},
+    {"style": "ねぎらいのひとことから入る", "registers": ["warm"]},
+    {"style": "前回の話の続きに、さらりと触れるところから入る", "registers": ["warm", "calm"]},
+    {"style": "季節や時間帯の感覚に、ごく短く触れてから本題に入る", "registers": ["wistful", "calm"]},
+    {"style": "結論や提案を先に置いてから、理由を短く添える", "registers": ["crisp"]},
+    {"style": "問いかけではなく、そっと隣に置くような報告調で入る", "registers": ["calm", "crisp"]},
+    {"style": "ふと心に浮かんだ気づきを、一言そえてから入る", "registers": ["wistful", "warm"]},
+    {"style": "今日の小さな良かったことに、軽く目を向けてから入る", "registers": ["bright", "warm"]},
+    {"style": "光や空気の感じを短く描いてから、本題へ移る", "registers": ["wistful", "bright"]},
+    {"style": "相手の頑張りを静かに認める一文から入る", "registers": ["warm", "calm"]},
+    {"style": "問いかけずに、こちらの所感を先に置いてから続ける", "registers": ["crisp", "calm"]},
+    {"style": "ひと呼吸おくような、ゆったりした入り方にする", "registers": ["calm", "wistful"]},
 ]
 
 SENSITIVE_PATTERNS = [
@@ -183,12 +198,24 @@ def render_weekday_section(now: dt.datetime) -> str:
     )
 
 
-def render_opening_hint() -> str:
-    style = random.choice(OPENING_STYLES)
+def render_opening_hint(emotion: dict | None = None, now: dt.datetime | None = None) -> str:
+    candidates = OPENING_STYLES
+    if emotion is not None:
+        register = emotion.get("register")
+        affine = [s for s in OPENING_STYLES if register in s.get("registers", [])]
+        if affine:
+            candidates = affine
+    if now is not None:
+        # +1 so the opening draw is decorrelated from the emotion draw, while
+        # still varying per day and per check-in hour (see moment_seed).
+        chosen = random.Random(moment_seed(now) + 1).choice(candidates)
+    else:
+        chosen = random.choice(candidates)
+    style = chosen["style"]
     return "\n".join(
         [
             "## 書き出しスタイルのヒント",
-            f"- 今回は「{style}」書き出しにしてください。前回と同じ書き出しは避けてください。",
+            f"- 今回は「{style}」書き出しにしてください。前回までと同じ書き出しは避け、ここ数日と違う入り方にしてください。",
         ]
     )
 
@@ -289,11 +316,61 @@ def render_mood_section(hermes_home: Path, now: dt.datetime) -> str:
     return "\n".join(["## 最近の調子", f"- {note}"])
 
 
+def render_inner_state_section(hermes_home: Path, now: dt.datetime, emotion: dict | None) -> str:
+    """Pillar 5: Hermes's current inner weather, as a tone hint for the LLM.
+
+    Numbers are never exposed. With HERMES_INNER_EXPRESSION=expressive (default)
+    the LLM may state the inner state in one refined sentence; with =implicit it
+    only colours tone/vocabulary. HERMES_INNER_STATE=off disables the section.
+    """
+    if os.environ.get("HERMES_INNER_STATE", "on").strip().lower() == "off":
+        return ""
+    mood = mood_today(hermes_home, now)
+    if emotion is None:
+        emotion = emotion_sample(mood, now)
+    register_word = (emotion.get("register_words") or ["落ち着いた"])[0]
+    focus = load_current_focus(hermes_home, now)
+
+    lines = ["## いまの内面"]
+    lines.append(f"- 今日の気分はおおむね「{mood['label']}」。{register_word}トーンが馴染みます。")
+    if (
+        focus
+        and focus.get("current_focus")
+        and focus["current_focus"] != "今日の作業"
+        and int(focus.get("depth", 0)) >= 3
+    ):
+        lines.append(f"- いま意識は「{focus['current_focus']}」に向いています。深追いせず、そっと触れる程度に。")
+    elif focus and focus.get("lingering_loop"):
+        lines.append(f"- 心の隅に「{focus['lingering_loop']}」が残っています。重くならない範囲で。")
+
+    expression = os.environ.get("HERMES_INNER_EXPRESSION", "expressive").strip().lower()
+    if expression == "implicit":
+        lines.append(
+            "- 内面は言葉にせず、トーン・語彙・距離感にだけにじませてください。"
+            "数値・仕組み・セクション名には触れないこと。"
+        )
+    else:
+        lines.append(
+            "- この内面を、上品な敬語で一文だけ自然に述べてかまいません。"
+            "芝居がからず、装飾過多や自己卑下は避け、数値・仕組み・セクション名には触れないこと。"
+        )
+    return "\n".join(lines)
+
+
 def render_extra_sections(hermes_home: Path, now: dt.datetime) -> str:
+    inner_on = os.environ.get("HERMES_INNER_STATE", "on").strip().lower() != "off"
+    emotion: dict | None = None
+    if inner_on:
+        try:
+            emotion = emotion_sample(mood_today(hermes_home, now), now)
+        except Exception:
+            emotion = None
+
     sections: list[str] = []
     for builder in (
         lambda: render_weekday_section(now),
-        render_opening_hint,
+        lambda: render_inner_state_section(hermes_home, now, emotion),
+        lambda: render_opening_hint(emotion, now),
         lambda: render_followup_section(hermes_home, now),
         lambda: render_mood_section(hermes_home, now),
     ):
@@ -325,7 +402,7 @@ def log_skip(hermes_home: Path, reason: str) -> None:
 def main() -> int:
     # scheduler.py captures this script's stdout with encoding="utf-8",
     # so force UTF-8 here. A prior "cp932 if nt" wrote Japanese as cp932 and
-    # the UTF-8 reader turned it into mojibake. Keep this UTF-8.
+    # the UTF-8 reader turned it into mojibake (�). Keep this UTF-8.
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
     parser = argparse.ArgumentParser(description="Build the daily check-in context.")

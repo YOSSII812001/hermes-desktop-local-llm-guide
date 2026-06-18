@@ -10,7 +10,7 @@ Discord DM、Obsidian、Codex skills、各種Tool useまで含めた個人メン
 - [Hermes Agent Desktop を個人メンター秘書として運用する設定メモ](docs/personal-mentor-discord-obsidian-gemma4.md)
 - [Hermes Agent Desktop 自律実行とGateway運用メモ](docs/autonomous-codex-gateway-ops.md)
 - [Hermes Agent Desktop セットアップ学びチェックリスト](docs/setup-lessons-checklist.md)
-- [Hermes Agent Desktop を人間らしくする設定メモ（記憶・ゆらぎ・調子・文体）](docs/human-like-behavior.md)
+- [Hermes Agent Desktop を人間らしくする設定メモ（記憶・ゆらぎ・調子・文体・内面）](docs/human-like-behavior.md)
 - [クラウドNemotronを手動切替で使う（Codex不在時の代役）](docs/nemotron-cloud-model.md)
 - [安全な設定サンプル](examples/)
 
@@ -873,7 +873,7 @@ Get-Content "$env:LOCALAPPDATA\hermes\logs\agent.log" -Tail 200 |
 第18章で「いつ声をかけるか」を作りました。
 この章は、その上に「何を覚えていて、いつ・どんな調子で声をかけるか」を足した話です。
 
-結論から言うと、4本柱（記憶とフォローアップ／時間のゆらぎ／調子への寄り添い／会話の自然さ）を、
+結論から言うと、5本柱（記憶とフォローアップ／時間のゆらぎ／調子への寄り添い／会話の自然さ／内面状態）を、
 **できるだけLLMを呼ばずルールベースで**実装しました。
 12Bのローカルモデルはテンプレ感が出やすいので、乱数や状態ファイルで揺さぶる方が安く確実だったからです。
 
@@ -885,7 +885,8 @@ flowchart TD
     Jitter --> Llm["ensure_llm.py：llama-server を起こす（落ちていれば）"]
     Llm --> Ctx["当日の通常会話を文脈として注入"]
     Ctx --> Day["## いまの時間と曜日（曜日別ヒント）"]
-    Day --> Open["## 書き出しスタイルのヒント（6種からランダム1つ）"]
+    Day --> Inner["## いまの内面（気分・感情・focus を決定論で計算）"]
+    Inner --> Open["## 書き出しスタイルのヒント（12種から内面に合わせて1つ）"]
     Open --> Loop["## 先日からの続き（open_loops から最大1件）"]
     Loop --> Mood["## 最近の調子（疲労傾向のトーン調整）"]
     Mood --> Out["これらを材料にLLMが1通を書く"]
@@ -896,7 +897,7 @@ flowchart TD
 
 詳しいセットアップ（cron登録コマンド、jobs.json への prompt 追記例、SOUL.md / SKILL.md への追記全文、状態ファイルのサンプル）は、次の詳細メモにまとめました。
 
-- [Hermes Agent Desktop を人間らしくする設定メモ（記憶・ゆらぎ・調子・文体）](docs/human-like-behavior.md)
+- [Hermes Agent Desktop を人間らしくする設定メモ（記憶・ゆらぎ・調子・文体・内面）](docs/human-like-behavior.md)
 
 ### 19.1 日次ダイジェストと未解決トピック（記憶）
 
@@ -1035,6 +1036,20 @@ $env:HERMES_REAPER_IDLE_MINUTES = "0"
 
 cronジョブとして仕込んだものは `hermes cron run <name>` で叩けます。
 切り替えフラグはcron経由では渡せないので、挙動を変える検証はenvかファイルで行います。
+
+### 19.6 内面状態（感情・気分・バイオリズム・意識）
+
+柱3の「調子」が疲労でトーンを下げるだけの後ろ向きの調整だったのに対し、
+ここは「今日のHermesはどんな心持ちか」という前向きの内面を一枚足します。
+バイオリズム（固定起点からの正弦波3サイクル＋時刻帯）・気分・感情レジスタ・focus（今向いている話題）を
+**すべて決定論で計算**し、毎日・時間帯ごとに必然的に変わる内面を `## いまの内面` として注入します。
+LLM は数値を一切見ず、その内面を上品な敬語で一文だけ述べたり、トーンに反映したりします。
+
+肝は既存への無干渉です。focus 追跡は別ファイル `cron\focus_state.json` に書くだけで、
+注意スコアや `should_notify` には触れません。乱数は感情1か所だけで、しかも `random.Random(seed)` の
+ローカルインスタンス（日×時刻 seed）なのでグローバル状態を汚さず、同じ時間なら再現します。
+切り替えは env（`HERMES_INNER_EXPRESSION=expressive|implicit`、kill-switch `HERMES_INNER_STATE=off`）。
+詳細・関数・状態ファイルのスキーマは [docs/human-like-behavior.md](docs/human-like-behavior.md) の「柱5」を参照してください。
 
 ## 20. 将来案: 夜間LoRAファインチューニングによる再帰的自己改善
 
