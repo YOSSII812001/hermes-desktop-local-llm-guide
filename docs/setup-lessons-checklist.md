@@ -22,6 +22,7 @@
 | Claude系のretryは接続エラーに見えてもmodel名が原因のことがある | Claude / stop-slop 復旧メモ | `.claude\debug` で `model_not_found` と `model=` だけ検索する |
 | Claude Opus 4.8 は `claude-opus-4-8` と書く | Claude / stop-slop 復旧メモ | `claude-opus-4.8` や `claude-fable-5[1m]` を既定値に残さない |
 | `stop-slop` はruntimeごとのskill directoryに置く | Claude / stop-slop 復旧メモ、install script | `.claude\skills`、`.codex\skills`、`.agents\skills` を確認する |
+| Claude Desktop local agent modeは別のskills-plugin manifestを見ることがある | Claude / stop-slop 復旧メモ、install script | `%APPDATA%\Claude\local-agent-mode-sessions\skills-plugin\...\manifest.json` に `stop-slop` があり、有効化されているか確認する |
 | Hermes Agentは64K程度のコンテキストを要求することがある | README、詳細メモ | 下限は64K。公式Gemma 4 QAT Q4_0では256Kも起動できた |
 | 256KではKVキャッシュのVRAMが大きくなる | README、詳細メモ、config例 | `--cache-type-k q8_0` と `--cache-type-v q8_0` で余裕を作る |
 | Gemma 4は古いllama.cppでは読めないことがある | README、詳細メモ | `unknown model architecture: 'gemma4'` が出たら更新する |

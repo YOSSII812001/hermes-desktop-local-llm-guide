@@ -22,6 +22,7 @@
 - Opus 4.8 を使う場合の設定値は `claude-opus-4-8` にする。
 - `claude-opus-4.8` のようなドット表記や、別モデルへの置き換えは避ける。
 - `stop-slop` は利用する runtime ごとの skill directory へ置く。
+- Claude Desktop の local agent mode は `%APPDATA%\Claude\local-agent-mode-sessions\skills-plugin` 配下の manifest を使うことがある。`.claude\skills` だけでは Desktop 側から見えない場合がある。
 
 ## 1. 実プロファイルを確認する
 
@@ -81,6 +82,7 @@ $settings | ConvertTo-Json -Depth 64 | Set-Content -Encoding UTF8 $settingsPath
 %USERPROFILE%\.claude\skills\stop-slop
 %USERPROFILE%\.codex\skills\stop-slop
 %USERPROFILE%\.agents\skills\stop-slop
+%APPDATA%\Claude\local-agent-mode-sessions\skills-plugin\...\skills\stop-slop
 ```
 
 dry run:
@@ -96,6 +98,21 @@ Get-ChildItem "$env:USERPROFILE\.claude\skills\stop-slop"
 Get-ChildItem "$env:USERPROFILE\.codex\skills\stop-slop"
 Get-ChildItem "$env:USERPROFILE\.agents\skills\stop-slop"
 ```
+
+Claude Desktop local agent mode で使われる skills plugin も確認します。
+
+```powershell
+$pluginBase = Join-Path $env:APPDATA "Claude\local-agent-mode-sessions\skills-plugin"
+$manifest = Get-ChildItem -LiteralPath $pluginBase -Recurse -Filter manifest.json |
+  Sort-Object LastWriteTime -Descending |
+  Select-Object -First 1 -ExpandProperty FullName
+$pluginRoot = Split-Path -Parent $manifest
+$json = Get-Content -LiteralPath $manifest -Raw -Encoding UTF8 | ConvertFrom-Json
+@($json.skills | Where-Object { $_.name -eq "stop-slop" -and $_.enabled }).Count
+Test-Path (Join-Path $pluginRoot "skills\stop-slop\SKILL.md")
+```
+
+manifest を更新した後は、Claude Desktop の local agent session を開き直してください。Desktop 側が古い skills-plugin cache を保持している場合があります。
 
 ## 5. 動作確認
 
@@ -130,6 +147,7 @@ claude -p "OK とだけ返して" --output-format json --max-budget-usd 1.00
 1. debug log で `model_not_found` を検索する。
 2. `%USERPROFILE%\.claude\settings.json` の `model` を確認する。
 3. `claude -p ... --output-format json --max-budget-usd 1.00` で単体疎通を見る。
-4. `stop-slop` の skill directory 3か所を確認する。
-5. `personal-mentor-secretary` は正規ソース確認まで作らない。
-6. `daily_conversation_context.py` の timeout が再発する場合は、LLM 起動待ち、`ensure_llm.py`、cron output、`checkin_skips.jsonl` を見る。
+4. `stop-slop` の user skill directory 3か所を確認する。
+5. Claude Desktop local agent mode の `skills-plugin` manifest に `stop-slop` があるか確認する。
+6. `personal-mentor-secretary` は正規ソース確認まで作らない。
+7. `daily_conversation_context.py` の timeout が再発する場合は、LLM 起動待ち、`ensure_llm.py`、cron output、`checkin_skips.jsonl` を見る。

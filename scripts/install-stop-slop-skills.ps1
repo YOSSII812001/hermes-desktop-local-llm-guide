@@ -7,6 +7,7 @@ param(
     (Join-Path $env:USERPROFILE ".codex\skills\stop-slop"),
     (Join-Path $env:USERPROFILE ".agents\skills\stop-slop")
   ),
+  [switch]$SkipClaudeDesktopPlugin,
   [switch]$DryRun
 )
 
@@ -46,6 +47,79 @@ function Assert-StopSlopSource {
   }
 }
 
+function Get-ClaudeDesktopSkillPluginManifests {
+  $pluginBase = Join-Path $env:APPDATA "Claude\local-agent-mode-sessions\skills-plugin"
+  if (-not (Test-Path -LiteralPath $pluginBase -PathType Container)) {
+    return @()
+  }
+
+  return @(
+    Get-ChildItem -LiteralPath $pluginBase -Recurse -Filter "manifest.json" |
+      Sort-Object LastWriteTime -Descending
+  )
+}
+
+function Install-ClaudeDesktopSkillPlugin {
+  param([Parameter(Mandatory = $true)][string]$Path)
+
+  $manifests = Get-ClaudeDesktopSkillPluginManifests
+  if ($manifests.Count -eq 0) {
+    Write-Warning "Claude Desktop skills-plugin manifest was not found. Start Claude Desktop local agent mode, then rerun this script if needed."
+    return
+  }
+
+  foreach ($manifestFile in $manifests) {
+    $manifest = $manifestFile.FullName
+    $pluginRoot = Split-Path -Parent $manifest
+    $target = Join-Path $pluginRoot "skills\stop-slop"
+
+    if (-not $target.StartsWith($pluginRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+      throw "Refusing to write outside Claude Desktop skills-plugin root: $target"
+    }
+
+    Invoke-Step "Install stop-slop to Claude Desktop skills-plugin: $target" {
+      New-Item -ItemType Directory -Force -Path $target | Out-Null
+      Copy-Item -Path (Join-Path $Path "*") -Destination $target -Recurse -Force
+    }
+
+    Invoke-Step "Update Claude Desktop skills-plugin manifest: $manifest" {
+      $backup = "$manifest.bak-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+      Copy-Item -LiteralPath $manifest -Destination $backup
+
+      $json = Get-Content -LiteralPath $manifest -Raw -Encoding UTF8 | ConvertFrom-Json
+      $skills = @($json.skills)
+      $existing = $skills |
+        Where-Object { $_.name -eq "stop-slop" -or $_.skillId -eq "stop-slop" } |
+        Select-Object -First 1
+
+      if ($existing) {
+        $existing.enabled = $true
+        if ($existing.PSObject.Properties.Name -contains "updatedAt") {
+          $existing.updatedAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ")
+        }
+      } else {
+        $entry = [pscustomobject]@{
+          skillId = "stop-slop"
+          name = "stop-slop"
+          description = "Remove AI writing patterns from prose. Use when drafting, editing, or reviewing text to eliminate predictable AI tells."
+          creatorType = "user"
+          updatedAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ")
+          enabled = $true
+        }
+        $json.skills = @($skills + $entry)
+      }
+
+      if ($json.PSObject.Properties.Name -contains "lastUpdated") {
+        $epoch = [datetime]"1970-01-01T00:00:00Z"
+        $json.lastUpdated = [int64](((Get-Date).ToUniversalTime()) - $epoch).TotalMilliseconds
+      }
+
+      $text = $json | ConvertTo-Json -Depth 64
+      [System.IO.File]::WriteAllText($manifest, $text + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
+    }
+  }
+}
+
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
   throw "git command was not found. Install Git or pass an existing -SourceDir."
 }
@@ -81,6 +155,10 @@ foreach ($target in $Targets) {
     New-Item -ItemType Directory -Force -Path $target | Out-Null
     Copy-Item -Path (Join-Path $SourceDir "*") -Destination $target -Recurse -Force
   }
+}
+
+if (-not $SkipClaudeDesktopPlugin) {
+  Install-ClaudeDesktopSkillPlugin -Path $SourceDir
 }
 
 Write-Host "stop-slop skill install complete"
