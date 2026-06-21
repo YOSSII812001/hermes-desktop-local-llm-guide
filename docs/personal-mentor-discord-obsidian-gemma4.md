@@ -445,6 +445,36 @@ for name in ["web", "image_gen", "vision", "skills", "file"]:
 '@ | & "$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts\python.exe" -
 ```
 
+### 10.1 Gemma 4 / Nemotron 3 のTool call形式差分
+
+Gemma 4とNemotron 3は、どちらもHermesから見ると「Toolを使えるLLM」ですが、履歴の戻し方が違います。
+
+Gemma 4ローカル運用:
+
+- Tool定義はOpenAI互換の `tools` 形式で渡せます。
+- ただし、Tool実行後の履歴は生の `role: tool` メッセージをそのまま戻すより、Gemma 4 chat templateに合わせて `assistant` メッセージ内の `tool_calls` と `tool_responses` に畳み込むのが安全です。
+- ローカルのOpenAI互換サーバーが、構造化 `tool_calls` ではなく `<|tool_call>call:name{...}<tool_call|>` のようなGemma 4ネイティブ文字列を返すことがあります。その場合は通常の本文回答として扱わず、Hermes側で構造化Tool callへ戻してからToolを実行します。
+
+Nemotron 3 / NVIDIA NIM運用:
+
+- NVIDIA NIMはOpenAI互換のChat Completionsとして扱います。
+- `assistant.tool_calls` に対して `role: tool` で結果を返す標準ループを維持します。
+- Toolを渡すリクエストでは、top-levelに `tool_choice: auto` を付けます。Toolがない通常会話では付けません。
+- NIMがMCPへ直接つなぐわけではありません。MCPやHermes Toolの実行はクライアント側が行い、結果を次のLLM呼び出しへ戻します。
+
+切替運用では、Gemma用の履歴変換とNemotron用のOpenAI互換ループを同じ処理に混ぜないでください。`/model gemma` と `/model nemotron` の両方で、少なくとも次を確認します。
+
+```text
+1. web_search など軽いToolを呼ばせる
+2. Tool結果を受けた次ターンで自然に続きの回答を出せる
+3. モデルを切り替えても前モデル用のTool履歴形式が漏れない
+```
+
+公式参照:
+
+- Gemma 4 Function calling: https://ai.google.dev/gemma/docs/capabilities/text/function-calling-gemma4
+- NVIDIA NIM Tool Calling and MCP: https://docs.nvidia.com/nim/large-language-models/latest/advanced-use-cases/tool-calling-and-mcp.html
+
 ## 11. Messaging Gatewayを自動起動する
 
 Discord DM応答は、Hermes Desktop本体ではなくMessaging Gatewayが担当します。
