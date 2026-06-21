@@ -11,6 +11,7 @@ Discord DM、Obsidian、Codex skills、各種Tool useまで含めた個人メン
 - [Hermes Agent Desktop 自律実行とGateway運用メモ](docs/autonomous-codex-gateway-ops.md)
 - [Hermes Agent Desktop セットアップ学びチェックリスト](docs/setup-lessons-checklist.md)
 - [Hermes Agent Desktop を人間らしくする設定メモ（記憶・ゆらぎ・調子・文体・内面）](docs/human-like-behavior.md)
+- [Claude / stop-slop 復旧メモ](docs/claude-stop-slop-recovery.md)
 - [クラウドNemotronを手動切替で使う（Codex不在時の代役）](docs/nemotron-cloud-model.md)
 - [安全な設定サンプル](examples/)
 
@@ -27,6 +28,7 @@ Gemma 4ローカルLLM、Discord DM、Obsidian、Codex skills連携込みで
 
 まずREADME.mdを読み、次に docs/personal-mentor-discord-obsidian-gemma4.md と
 docs/autonomous-codex-gateway-ops.md と docs/setup-lessons-checklist.md を読んでください。
+Claude系のエラーや stop-slop 導入を扱う場合は docs/claude-stop-slop-recovery.md も読んでください。
 必要に応じて examples/ の設定サンプルを使ってください。
 秘密情報や実パスは推測せず、必要なものだけ私に確認してください。
 ```
@@ -52,6 +54,7 @@ AIは手順を再現できますが、秘密情報と実ファイルパスはユ
 - Discord向け内部思考ガードでローカルLLMの漏れを抑える
 - Gateway外側watchdogでGateway停止を復旧する
 - Codex skillsをHermes側でも参照する
+- Claude系の `model_not_found` と `stop-slop` 未導入を復旧する
 - クラウドのNVIDIA Nemotron(550B)を `/model` で手動切替し、Codex不在時の代役にする
 - 日次ダイジェストで当日の会話を要約し、未解決トピックを翌日にそっとフォローする
 - チェックインの送信タイミングを数分ゆらし、曜日と時間帯に合わせて声をかける
