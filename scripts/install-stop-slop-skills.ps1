@@ -146,6 +146,13 @@ if (-not $DryRun) {
 }
 
 foreach ($target in $Targets) {
+  $sourceFull = [System.IO.Path]::GetFullPath($SourceDir).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+  $targetFull = [System.IO.Path]::GetFullPath($target).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+  if ([string]::Equals($sourceFull, $targetFull, [System.StringComparison]::OrdinalIgnoreCase)) {
+    Write-Host "Skipping target because it is the source directory: $target"
+    continue
+  }
+
   $targetParent = Split-Path -Parent $target
   Invoke-Step "Ensure target parent exists: $targetParent" {
     New-Item -ItemType Directory -Force -Path $targetParent | Out-Null
