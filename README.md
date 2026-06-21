@@ -53,6 +53,7 @@ AIは手順を再現できますが、秘密情報と実ファイルパスはユ
 - Gateway外側watchdogでGateway停止を復旧する
 - Codex skillsをHermes側でも参照する
 - クラウドのNVIDIA Nemotron(550B)を `/model` で手動切替し、Codex不在時の代役にする
+- Gemma 4とNemotron 3で異なるTool call形式を切り分けて検証する
 - 日次ダイジェストで当日の会話を要約し、未解決トピックを翌日にそっとフォローする
 - チェックインの送信タイミングを数分ゆらし、曜日と時間帯に合わせて声をかける
 - 疲労の傾向を数日分追跡し、提案の量とトーンを自動で控えめにする
@@ -109,6 +110,10 @@ Hermes Desktop側から見ると、ローカルにあるOpenAI互換エンドポ
 今回の一番大きな学びはここです。
 
 Hermes CLI用の設定と、Hermes Desktop用の設定は別の場所を見ていることがあります。
+
+Tool useもモデルごとに前提が違います。ローカルGemma 4はGemma 4のchat templateに合わせ、完了済みのTool結果を `assistant.tool_calls` / `assistant.tool_responses` として戻す必要があります。一方、NVIDIA NIM上のNemotron 3はOpenAI互換の `tools` / `assistant.tool_calls` / `role: tool` ループを維持し、Toolを渡すときだけ top-level の `tool_choice: auto` を付けます。
+
+この違いを混ぜると、HermesがToolを持っていてもモデルがTool callを出さない、またはTool結果の次ターンで崩れる原因になります。詳細は [Gemma 4運用メモ](docs/personal-mentor-discord-obsidian-gemma4.md#101-gemma-4--nemotron-3-のtool-call形式差分) と [Nemotron運用メモ](docs/nemotron-cloud-model.md#tool-callingの注意) を確認してください。
 
 ```text
 CLIで見ていた設定:

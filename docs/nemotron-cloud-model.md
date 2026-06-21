@@ -78,6 +78,42 @@ Hermesのチャットセッション内で切り替えます（エイリアス�
 
 `--global` を付けない限り、切替は現在のセッション限りで、新しいセッションは自動でGemmaに戻ります（＝普段はGemmaを維持）。
 
+## Tool callingの注意
+
+Nemotron 3 / NVIDIA NIMはOpenAI互換APIとして使います。Gemma 4ローカル運用と同じ履歴変換を流用しないでください。
+
+NVIDIA NIM側:
+
+- リクエストにはOpenAI互換の `tools` を渡す
+- Tool付きリクエストでは top-level に `tool_choice: auto` を付ける
+- Toolがない通常会話では `tool_choice` を付けない
+- モデルが返した `assistant.tool_calls` をHermes側で実行し、結果を `role: tool` として次ターンへ戻す
+
+Gemma 4側との違い:
+
+- Gemma 4はTool実行後の履歴を `assistant.tool_calls` / `assistant.tool_responses` へ畳み込む必要がある
+- Nemotron 3は標準のOpenAI互換 `assistant.tool_calls` -> `role: tool` ループを維持する
+- NIMはMCPサーバーへ直接接続しない。MCP Toolの列挙・実行・結果返却はHermes側の責務
+
+確認用の軽いプロンプト:
+
+```text
+/model nemotron
+web_search tool を使って NVIDIA NIM tool calling の公式情報を1件確認し、出典付きで要約してください。
+```
+
+確認ポイント:
+
+- `tools` ありの呼び出しで `tool_choice: auto` が入る
+- Tool結果が `role: tool` として戻る
+- Tool結果の次ターンでNemotronが自然文の最終回答を返す
+- `/model gemma` に戻した後、Gemma用のTool履歴形式と混ざらない
+
+公式参照:
+
+- NVIDIA NIM Tool Calling and MCP: https://docs.nvidia.com/nim/large-language-models/latest/advanced-use-cases/tool-calling-and-mcp.html
+- NVIDIA NIM Nemotron 3 Ultra quickstart: https://docs.nvidia.com/nim/large-language-models/latest/day-0/get-started-nemotron-3-ultra.html
+
 ## 注意点
 
 - 無料枠はレート制限あり（超過は HTTP 429 が返るだけで**課金は発生しない**）

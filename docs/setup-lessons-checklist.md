@@ -23,6 +23,8 @@
 | Gemma 4は古いllama.cppでは読めないことがある | README、詳細メモ | `unknown model architecture: 'gemma4'` が出たら更新する |
 | 16GB VRAMでは公式QAT Q4_0が現実的 | README | `google/gemma-4-12B-it-qat-q4_0-gguf` を第一候補にする |
 | Gemma 4の思考はHermes側とllama-server側の両方を見る | README、詳細メモ | `reasoning_effort: xhigh` と `--reasoning-budget -1` |
+| Gemma 4とNemotron 3はTool履歴形式が違う | README、詳細メモ、Nemotronメモ | Gemmaは `assistant.tool_calls/tool_responses`、NemotronはOpenAI互換 `role: tool` ループ |
+| NVIDIA NIMでToolを渡すときは `tool_choice: auto` が必要 | Nemotronメモ | Toolありの時だけtop-levelへ付け、Toolなし会話では省く |
 | 思考内容はユーザーへ常時見せなくてもよい | 詳細メモ、config例 | `display.show_reasoning: false` を維持する |
 | llama-server準備完了を待ってからDesktop表示すると不安になる | README | Desktopは先に表示し、準備確認は裏で行う |
 | ショートカット連打で二重起動する | README、スクリプト | 既存ランチャーと既存Gemmaサーバーを検出する |
@@ -82,6 +84,8 @@
 - `http://127.0.0.1:8080/v1/models` に `gemma-4-12b-it` が出る
 - Hermes Desktopの `/api/model/info` が `provider: custom` と `context_length: 262144` を返す
 - Gemma 4の `reasoning_content` が返る
+- Gemma 4でToolを呼び、Tool結果の次ターンが `assistant.tool_calls/tool_responses` 形式で崩れない
+- `/model nemotron` 後にToolを呼び、NVIDIA NIM側では `tool_choice: auto` とOpenAI互換 `role: tool` ループで崩れない
 - Hermes Desktopを閉じると `llama-server.exe` が止まり、VRAMが空く
 - Discord DMでBotが返答する
 - DM内の `/sethome` が完了する
