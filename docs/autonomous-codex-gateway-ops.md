@@ -712,6 +712,7 @@ script stdoutはHermes側の読み方に合わせます。
 - 会話が古い
 - 具体的な次の一手がない
 - `Codex` のような広い単語だけでtopicが固定されている
+- `Hermes自律会話` や `直近heartbeat` のような内部メモだけで終わっている
 
 設定:
 
@@ -720,8 +721,51 @@ cron:
   wrap_response: false
 ```
 
-`[SILENT]` の場合はDiscordへ配送しないようにします。
+`no_agent: true` のheartbeat scriptは、通知しないときに `{"wakeAgent": false}` を返します。
+LLMを起こすjobでは、`[SILENT]` の場合にDiscordへ配送しないようにします。
 ログでは、cron outputと `agent.log` の delivery skip を確認します。
+
+重要な境界:
+
+- Hermes内部の自律会話、直近heartbeat、スコア計算、次に確認する候補はユーザー通知にしない
+- `heartbeat` という一般語は一律ブロックしない。外部サービスのheartbeat異常は有用な警告になり得る
+- 「次は直近heartbeatが黙るか、具体的な一手だけを送るかを1回確認する」のような運用メモは `wakeAgent:false` にする
+- `token:` や `api key:` のような秘密ラベルは、日本語直後の `でtoken:` でも検知する
+
+公開repoのサンプル:
+
+```text
+scripts\autonomous_trigger_evaluator.py
+```
+
+cron job例:
+
+```json
+{
+  "name": "autonomous-heartbeat-15m",
+  "script": "autonomous_trigger_evaluator.py",
+  "no_agent": true,
+  "schedule": {
+    "kind": "cron",
+    "expr": "*/15 * * * *"
+  },
+  "deliver": "discord"
+}
+```
+
+確認コマンド:
+
+```powershell
+py -X pycache_prefix="$env:TEMP\hermes-pycache" -m py_compile .\scripts\autonomous_trigger_evaluator.py
+py .\scripts\autonomous_trigger_evaluator.py --no-state-write --json
+```
+
+期待する挙動:
+
+- 通知材料がない場合は `wakeAgent:false`
+- 内部heartbeatメモだけの場合も `wakeAgent:false`
+- 秘密情報らしい文字列や実エラーを見つけた場合だけ短い通知文を出す
+- `agent.log` に `delivered to discord` が出るのは、通知文を出したときだけ
 
 ## 14. context圧縮は早すぎたらthresholdを見る
 

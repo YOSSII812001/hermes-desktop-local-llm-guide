@@ -53,6 +53,9 @@
 | Discord最終応答には内部思考ガードを入れる | 自律実行メモ | `transform_llm_output` でDiscordだけを対象にする |
 | mentor Cronは通常会話文脈をpre-run scriptで渡す | 自律実行メモ | `daily_conversation_context.py` をjobに付ける |
 | 自律heartbeatはスコアだけで通知しない | 自律実行メモ | 不要な通知は `[SILENT]` にする |
+| 自律heartbeatの内部メモはユーザー通知にしない | 自律実行メモ、heartbeat script | `Hermes自律会話` や `直近heartbeat` だけなら `wakeAgent:false` |
+| 一般語のheartbeatは一律ブロックしない | 自律実行メモ、heartbeat script | 外部サービスのheartbeat異常は有用な通知として残す |
+| 秘密ラベル検知は日本語直後にも効かせる | 自律実行メモ、heartbeat script | `でtoken:` も拾える正規表現にする |
 | context圧縮が早すぎる場合はthresholdを見る | 自律実行メモ | 256Kなら `compression.threshold: 0.75` 前後を検討する |
 | 既存Obsidianノートは勝手に編集しない | 詳細メモ、SOUL例 | 編集はユーザーが明示したときだけ |
 | Codex skillsは外部ディレクトリとして渡す | 詳細メモ、config例 | `.codex\skills` と `.agents\skills` を設定する |
