@@ -53,6 +53,32 @@
       "profile": null
     },
     {
+      "id": "autohb15m",
+      "name": "autonomous-heartbeat-15m",
+      "prompt": "",
+      "skills": [],
+      "skill": "",
+      "script": "autonomous_trigger_evaluator.py",
+      "no_agent": true,
+      "context_from": null,
+      "schedule": {
+        "kind": "cron",
+        "expr": "*/15 * * * *",
+        "display": "*/15 * * * *"
+      },
+      "schedule_display": "*/15 * * * *",
+      "repeat": {
+        "times": null,
+        "completed": 0
+      },
+      "enabled": true,
+      "state": "scheduled",
+      "deliver": "discord",
+      "enabled_toolsets": null,
+      "workdir": null,
+      "profile": null
+    },
+    {
       "id": "gwselfrestart1m",
       "name": "gateway-self-restart-1m",
       "prompt": "",

@@ -60,6 +60,7 @@ AIは手順を再現できますが、秘密情報と実ファイルパスはユ
 - 日次ダイジェストで当日の会話を要約し、未解決トピックを翌日にそっとフォローする
 - チェックインの送信タイミングを数分ゆらし、曜日と時間帯に合わせて声をかける
 - 疲労の傾向を数日分追跡し、提案の量とトーンを自動で控えめにする
+- 自律heartbeatの内部メモを黙らせ、必要な安全警告や実エラーだけDiscordへ送る
 - チェックイン直前に `llama-server` を自動起動し、使い終わったら自動で回収する
 - `approvals.mode: off` で承認なしのYOLO運用にする
 
@@ -638,7 +639,7 @@ C:\Users\<USER>\AppData\Local\hermes\scripts\autonomous_trigger_evaluator.py
 
 heartbeatの運用面（通知しすぎ対策）は、次の詳細メモにも要点があります。
 
-- [Hermes Agent Desktop 自律実行とGateway運用メモ](docs/autonomous-codex-gateway-ops.md) の「12. 自律heartbeatは通知しすぎない」
+- [Hermes Agent Desktop 自律実行とGateway運用メモ](docs/autonomous-codex-gateway-ops.md) の「13. 自律heartbeatは通知しすぎない」
 
 ### 18.1 二段構え：起動レイヤーと判断レイヤー
 
@@ -653,7 +654,7 @@ cronは2つのレイヤーに分かれています。
 ```mermaid
 flowchart TD
     Tick["cron tick（例: 15分ごと）"] --> Eval["autonomous_trigger_evaluator.py を実行"]
-    Eval --> Read["state.db から当日の直近24発言を読む"]
+    Eval --> Read["state.db から直近24発言を読む"]
     Read --> Score["注意スコアを計算（加点 - 減点）"]
     Score --> Level["行動レベルを決める"]
     Level --> Decide{"should_notify ?"}
@@ -695,6 +696,10 @@ Codex利用量を抑えたい場合は、軽いObsidian作業や短い要約をC
 スクリプトが `{"wakeAgent": false}` というJSONを出力すると、cron schedulerはLLMを起こさず、
 配送もしません。正常終了（success）として扱われ、Discordには何も出ません。
 通知したいときは、スクリプトが普通のテキスト（短いnote）を出力し、それがそのまま配送されます。
+
+特に `Hermes自律会話`、`直近heartbeat`、次の確認候補だけの運用メモは、ユーザーに送る情報ではありません。
+`autonomous_trigger_evaluator.py` は、こうした内部メモを `wakeAgent:false` にします。
+一方で、`heartbeat` という一般語は一律ブロックしません。外部サービスのheartbeat異常は、必要な通知として残します。
 
 schedulerから見た `no_agent` ジョブの挙動:
 
