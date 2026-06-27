@@ -13,6 +13,7 @@ Discord DM、Obsidian、Codex skills、各種Tool useまで含めた個人メン
 - [Hermes Agent Desktop を人間らしくする設定メモ（記憶・ゆらぎ・調子・文体・内面）](docs/human-like-behavior.md)
 - [Claude / stop-slop 復旧メモ](docs/claude-stop-slop-recovery.md)
 - [クラウドNemotronを手動切替で使う（Codex不在時の代役）](docs/nemotron-cloud-model.md)
+- [Life RPG の精算は発表と再計算が別物（XP取りこぼしと reconcile）](docs/life-rpg-xp-settlement-reconcile.md)
 - [安全な設定サンプル](examples/)
 
 ## AIへ渡すとき
