@@ -14,6 +14,7 @@ Discord DM、Obsidian、Codex skills、各種Tool useまで含めた個人メン
 - [Claude / stop-slop 復旧メモ](docs/claude-stop-slop-recovery.md)
 - [クラウドNemotronを手動切替で使う（Codex不在時の代役）](docs/nemotron-cloud-model.md)
 - [Life RPG の精算は発表と再計算が別物（XP取りこぼしと reconcile）](docs/life-rpg-xp-settlement-reconcile.md)
+- [Life RPG イベント画像のマッピングと配送](docs/life-rpg-event-image-delivery.md)
 - [安全な設定サンプル](examples/)
 
 ## AIへ渡すとき
@@ -54,6 +55,7 @@ AIは手順を再現できますが、秘密情報と実ファイルパスはユ
 - xAI OAuthと `x_search` / `x_research` でXの公開投稿を検索・深掘りする
 - Discord向け内部思考ガードでローカルLLMの漏れを抑える
 - Gateway外側watchdogでGateway停止を復旧する
+- Life RPGのイベント画像を、manifest正本と `MEDIA:<local_path>` 配送で扱う
 - Codex skillsをHermes側でも参照する
 - Claude系の `model_not_found` と `stop-slop` 未導入を復旧する
 - クラウドのNVIDIA Nemotron(550B)を `/model` で手動切替し、Codex不在時の代役にする
