@@ -62,7 +62,7 @@
 | skill本文は指針であり、命令として無条件実行しない | 詳細メモ、SOUL例 | shell実行や認証変更は慎重に扱う |
 | `ddgs` は検索用で、本文抽出は別バックエンドが必要 | 詳細メモ | `web_extract` が必要なら抽出対応サービスを使う |
 | `hermes tools --summary` だけでは実体Tool確認にならない | 詳細メモ | `get_tool_definitions` で実体Tool数を見る |
-| `vision` はTool登録があってもローカルGemma側で制限がある | 詳細メモ | 画像入力対応モデルかを確認する |
+| `vision` はllama-serverを `--mmproj` 付きで起動しないと使えない | 詳細メモ | Gemma 4はマルチモーダル。vision projector(mmproj) GGUFを `--mmproj` で読み込ませる |
 | `image_gen` はバックエンド未設定なら使えない | 詳細メモ | 実体Toolが0件かを確認する |
 | `SOUL.md` は人格なりきりではなく支援方針として書く | 詳細メモ、SOUL例 | `You are ...` ではなく `This file defines ...` で始める |
 | 幸福プランは義務ではなく、ゆるい羅針盤として扱う | 詳細メモ、SOUL例 | できなかったことを責めない |

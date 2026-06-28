@@ -105,6 +105,7 @@ Gemma 4は、古いllama.cppでは読み込めないことがあります。
 ```powershell
 & "$env:USERPROFILE\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe" `
   -m "$env:USERPROFILE\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf" `
+  --mmproj "$env:USERPROFILE\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\mmproj-model-f16.gguf" `
   --alias gemma-4-12b-it `
   --host 127.0.0.1 `
   --port 8080 `
@@ -126,6 +127,11 @@ Invoke-RestMethod http://127.0.0.1:8080/v1/models |
 
 `id` に `gemma-4-12b-it` が出ればOKです。
 `meta.n_ctx` が `262144` になっていれば、256Kコンテキストで起動しています。
+
+`--mmproj` は Gemma 4 の画像認識（vision）を有効にするための vision projector（mmproj）GGUF です。
+これを省くと llama-server はテキスト専用モードで起動し、画像を渡しても無視されます（モデル側の制限ではありません）。
+mmproj ファイル（例: `mmproj-model-f16.gguf`）は言語モデルと同じ GGUF 配布元から入手し、`--mmproj` 対応の llama-server ビルドを使ってください。
+起動ログに clip / vision / mmproj 関連の読み込み行が出ていれば、画像入力が有効になっています。
 
 ## 3. Gemma 4の最大思考を有効にする
 
@@ -424,7 +430,7 @@ $env:HERMES_CONFIG_DIR = "$env:LOCALAPPDATA\hermes"
 | `browser` | OK | CLIでは動作確認済み。Discordでは未開放 |
 | `web_search` | OK | `ddgs` で検索成功 |
 | `tts` | OK | 音声ファイル生成成功 |
-| `vision` | 制限あり | Tool登録はあるが、ローカルGemma側が画像入力に未対応 |
+| `vision` | 要mmproj | Gemma 4はマルチモーダルだが、llama-serverを `--mmproj` 付きで起動しないとテキスト専用になり画像が通らない |
 | `image_gen` | 未設定 | バックエンド未設定で実体Toolなし |
 | `web_extract` | 未設定 | `ddgs` は抽出非対応 |
 
@@ -597,6 +603,17 @@ Gemmaだけ止める:
 
 画像生成バックエンドが未設定です。
 `hermes tools --summary` に表示されても、実体Toolが0件のことがあります。
+
+### 画像を送っても認識されない（vision）
+
+Gemma 4 はマルチモーダルですが、llama-server を `--mmproj`（vision projector GGUF）付きで起動していないと、サーバーがテキスト専用モードになり画像が無視されます。
+モデル側の制限ではなく、起動設定の問題です。
+
+確認・対処:
+
+- 起動ログ（`llama-server-gemma.out.log` / `.err.log`）に clip / vision / mmproj の読み込み行が出ているか
+- `scripts/start-gemma-llama-server.ps1` の `-MmprojPath` が実在する mmproj GGUF を指しているか（無いと警告を出してテキスト専用で起動します）
+- mmproj ファイル（例: `mmproj-model-f16.gguf`）を言語モデルと同じ GGUF 配布元から入手し、`--mmproj` 対応の llama-server ビルドを使う
 
 ## セキュリティメモ
 

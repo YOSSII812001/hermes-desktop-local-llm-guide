@@ -190,6 +190,7 @@ C:\Users\<USER>\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe
 ```powershell
 & "C:\Users\<USER>\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe" `
   -m "C:\Users\<USER>\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf" `
+  --mmproj "C:\Users\<USER>\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\mmproj-model-f16.gguf" `
   --alias gemma-4-12b-it `
   --host 127.0.0.1 `
   --port 8080 `
@@ -204,6 +205,10 @@ C:\Users\<USER>\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe
 
 ポイントは `--alias` です。
 Hermes側ではこの名前をモデル名として使います。
+
+Gemma 4 はマルチモーダルモデルです。画像認識（vision）を有効にするには、言語モデル本体とは別に vision projector（mmproj）GGUF を `--mmproj` で読み込ませる必要があります。
+`gemma-4-12b-it-qat-q4_0.gguf` には言語層の重みしか含まれていないため、`--mmproj` を省くと llama-server はテキスト専用モードで起動し、画像を渡しても無視されます。
+mmproj ファイル（例: `mmproj-model-f16.gguf`）は同じ GGUF 配布元から入手し、`--mmproj` 対応の llama-server ビルドを使ってください。
 
 `--reasoning on` と `--reasoning-budget -1` は、Gemma 4の思考を有効にして制限なし寄りにする設定です。
 思考が不要な場合は `--reasoning off` に戻せます。

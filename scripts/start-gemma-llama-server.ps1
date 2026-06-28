@@ -1,6 +1,7 @@
 param(
     [string]$ServerExe = "$env:USERPROFILE\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe",
     [string]$ModelPath = "$env:USERPROFILE\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf",
+    [string]$MmprojPath = "$env:USERPROFILE\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\mmproj-model-f16.gguf",
     [string]$Alias = "gemma-4-12b-it",
     [string]$HostAddress = "127.0.0.1",
     [int]$Port = 8080,
@@ -48,6 +49,15 @@ if (-not (Test-Path -LiteralPath $ModelPath)) {
     throw "Model file was not found: $ModelPath"
 }
 
+# Gemma 4 is multimodal. To accept image input, llama-server must also load the
+# vision projector (mmproj) GGUF via --mmproj. Without it the server starts in
+# text-only mode and silently ignores images.
+$UseMmproj = Test-Path -LiteralPath $MmprojPath
+if (-not $UseMmproj) {
+    Write-Warning "mmproj (vision projector) not found: $MmprojPath"
+    Write-Warning "llama-server will start in TEXT-ONLY mode; image recognition will be disabled."
+}
+
 New-Item -ItemType Directory -Force -Path $LogsDir | Out-Null
 
 try {
@@ -77,7 +87,14 @@ try {
 }
 
 $Arguments = @(
-    "-m", $ModelPath,
+    "-m", $ModelPath
+)
+
+if ($UseMmproj) {
+    $Arguments += @("--mmproj", $MmprojPath)
+}
+
+$Arguments += @(
     "--alias", $Alias,
     "--host", $HostAddress,
     "--port", [string]$Port,
@@ -103,6 +120,11 @@ Write-Host "Started llama-server pid=$($process.Id)"
 Write-Host "Endpoint: $BaseUrl"
 Write-Host "Model alias: $Alias"
 Write-Host "Model file: $ModelPath"
+if ($UseMmproj) {
+    Write-Host "Vision (mmproj): $MmprojPath"
+} else {
+    Write-Host "Vision (mmproj): DISABLED (text-only mode)"
+}
 Write-Host "Context size: $ContextSize"
 Write-Host "KV cache: K=$CacheTypeK V=$CacheTypeV"
 Write-Host "Logs: $StdOutLog"
