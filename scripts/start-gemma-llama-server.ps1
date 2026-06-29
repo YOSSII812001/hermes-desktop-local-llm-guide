@@ -71,8 +71,17 @@ function Resolve-MmprojPath {
     }
 
     $modelDir = Split-Path -Parent $ModelFilePath
+    if (-not (Test-Path -LiteralPath $modelDir -PathType Container)) {
+        return ""
+    }
+
+    # Prefer higher-precision projectors when several are present: f16 > bf16 > rest.
     $candidate = Get-ChildItem -LiteralPath $modelDir -Filter "mmproj*.gguf" -File -ErrorAction SilentlyContinue |
-        Sort-Object Name |
+        Sort-Object @{ Expression = {
+            if ($_.Name -match 'bf16') { 1 }
+            elseif ($_.Name -match 'f16') { 0 }
+            else { 2 }
+        } }, Name |
         Select-Object -First 1
     if ($candidate) {
         return $candidate.FullName
@@ -94,20 +103,31 @@ try {
     $models = Invoke-RestMethod -Uri "$BaseUrl/models" -TimeoutSec 2
     $expectedProcesses = @(Get-ExpectedGemmaServerProcess)
     if ($expectedProcesses.Count -gt 0) {
-        Write-Host "Expected Gemma llama-server is already running at $BaseUrl"
-        $models | ConvertTo-Json -Depth 8
-        exit 0
-    }
-
-    $oldGemmaProcesses = @(Get-AnyGemmaServerProcess)
-    if ($oldGemmaProcesses.Count -gt 0) {
-        foreach ($oldProcess in $oldGemmaProcesses) {
-            Stop-Process -Id $oldProcess.ProcessId -Force
-            Write-Host "Stopped older Gemma llama-server pid=$($oldProcess.ProcessId)"
+        # If we now have a vision projector but the running server was started
+        # text-only (no --mmproj), restart it so image recognition is enabled.
+        $runningWithoutVision = @($expectedProcesses | Where-Object { $_.CommandLine -notlike "*--mmproj*" })
+        if ($UseMmproj -and $runningWithoutVision.Count -gt 0) {
+            foreach ($staleProcess in $expectedProcesses) {
+                Stop-Process -Id $staleProcess.ProcessId -Force
+                Write-Host "Stopped text-only Gemma llama-server pid=$($staleProcess.ProcessId) to enable vision (mmproj)"
+            }
+            Start-Sleep -Seconds 2
+        } else {
+            Write-Host "Expected Gemma llama-server is already running at $BaseUrl"
+            $models | ConvertTo-Json -Depth 8
+            exit 0
         }
-        Start-Sleep -Seconds 2
     } else {
-        throw "Port ${Port} is already in use by a non-Gemma server at $BaseUrl"
+        $oldGemmaProcesses = @(Get-AnyGemmaServerProcess)
+        if ($oldGemmaProcesses.Count -gt 0) {
+            foreach ($oldProcess in $oldGemmaProcesses) {
+                Stop-Process -Id $oldProcess.ProcessId -Force
+                Write-Host "Stopped older Gemma llama-server pid=$($oldProcess.ProcessId)"
+            }
+            Start-Sleep -Seconds 2
+        } else {
+            throw "Port ${Port} is already in use by a non-Gemma server at $BaseUrl"
+        }
     }
 } catch {
     if ($_.Exception.Message -like "Port ${Port} is already in use*") {

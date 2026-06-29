@@ -208,7 +208,11 @@ Hermes側ではこの名前をモデル名として使います。
 
 Gemma 4 はマルチモーダルモデルです。画像認識（vision）を有効にするには、言語モデル本体とは別に vision projector（mmproj）GGUF を `--mmproj` で読み込ませる必要があります。
 `gemma-4-12b-it-qat-q4_0.gguf` には言語層の重みしか含まれていないため、`--mmproj` を省くと llama-server はテキスト専用モードで起動し、画像を渡しても無視されます。
-mmproj ファイル（例: `mmproj-model-f16.gguf`）は同じ GGUF 配布元から入手し、`--mmproj` 対応の llama-server ビルドを使ってください。
+
+mmproj ファイルは、言語モデルと同じ Hugging Face リポジトリ（`google/gemma-4-12B-it-qat-q4_0-gguf`）から、**言語モデルと同じフォルダ**にダウンロードします。
+ファイル名は配布元で異なります（公式QATは `mmproj-model-f16.gguf`、他の配布では `mmproj-BF16.gguf` 等）。
+`--mmproj` 対応の新しめの llama-server ビルドが必要です（古いビルドは vision 非対応のことがあります）。
+自動起動スクリプト（§12）を使う場合は、このファイルをモデルフォルダに置くだけで自動検出されます。
 
 `--reasoning on` と `--reasoning-budget -1` は、Gemma 4の思考を有効にして制限なし寄りにする設定です。
 思考が不要な場合は `--reasoning off` に戻せます。
@@ -429,6 +433,10 @@ scripts/x-research-codex.ps1
 $ServerExe = "C:\Users\<USER>\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe"
 $ModelPath = "C:\Users\<USER>\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf"
 ```
+
+画像認識（vision）は、`$ModelPath` と同じフォルダにある `mmproj*.gguf` を**自動検出**して `--mmproj` に渡します。
+そのため上の手動コマンド（§3）と違い、スクリプト利用時は mmproj のパスを書く必要はありません。
+ファイル名が特殊な場合や別フォルダに置く場合は `-MmprojPath` で明示できます。mmproj が見つからない場合は警告を出してテキスト専用で起動します。
 
 次にショートカットを作ります。
 

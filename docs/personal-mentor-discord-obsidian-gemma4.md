@@ -130,7 +130,9 @@ Invoke-RestMethod http://127.0.0.1:8080/v1/models |
 
 `--mmproj` は Gemma 4 の画像認識（vision）を有効にするための vision projector（mmproj）GGUF です。
 これを省くと llama-server はテキスト専用モードで起動し、画像を渡しても無視されます（モデル側の制限ではありません）。
-mmproj ファイル（例: `mmproj-model-f16.gguf`）は言語モデルと同じ GGUF 配布元から入手し、`--mmproj` 対応の llama-server ビルドを使ってください。
+mmproj ファイルは、言語モデルと同じ Hugging Face リポジトリ（`google/gemma-4-12B-it-qat-q4_0-gguf`）から、言語モデルと同じフォルダにダウンロードします。
+ファイル名は配布元で異なります（公式QATは `mmproj-model-f16.gguf`、他は `mmproj-BF16.gguf` 等）。`--mmproj` 対応の新しめの llama-server ビルドが必要です。
+自動起動スクリプト `scripts/start-gemma-llama-server.ps1` を使う場合は、モデルフォルダに置くだけで `mmproj*.gguf` を自動検出します（`-MmprojPath` で明示も可能）。
 起動ログに clip / vision / mmproj 関連の読み込み行が出ていれば、画像入力が有効になっています。
 
 ## 3. Gemma 4の最大思考を有効にする
