@@ -612,8 +612,8 @@ Gemma 4 はマルチモーダルですが、llama-server を `--mmproj`（vision
 確認・対処:
 
 - 起動ログ（`llama-server-gemma.out.log` / `.err.log`）に clip / vision / mmproj の読み込み行が出ているか
-- `scripts/start-gemma-llama-server.ps1` の `-MmprojPath` が実在する mmproj GGUF を指しているか（無いと警告を出してテキスト専用で起動します）
-- mmproj ファイル（例: `mmproj-model-f16.gguf`）を言語モデルと同じ GGUF 配布元から入手し、`--mmproj` 対応の llama-server ビルドを使う
+- `scripts/start-gemma-llama-server.ps1` はモデルと同じフォルダの `mmproj*.gguf` を自動検出します。ファイルが無いと警告を出してテキスト専用で起動するので、mmproj GGUF をモデルフォルダに置く（または `-MmprojPath` で明示）
+- mmproj ファイル名は配布元で異なります（公式QATは `mmproj-model-f16.gguf`、他は `mmproj-BF16.gguf` 等）。言語モデルと同じ GGUF 配布元から入手し、`--mmproj` 対応の llama-server ビルドを使う
 
 ## セキュリティメモ
 

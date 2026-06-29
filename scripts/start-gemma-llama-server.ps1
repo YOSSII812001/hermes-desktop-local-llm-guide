@@ -1,7 +1,7 @@
 param(
     [string]$ServerExe = "$env:USERPROFILE\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe",
     [string]$ModelPath = "$env:USERPROFILE\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf",
-    [string]$MmprojPath = "$env:USERPROFILE\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\mmproj-model-f16.gguf",
+    [string]$MmprojPath = "",
     [string]$Alias = "gemma-4-12b-it",
     [string]$HostAddress = "127.0.0.1",
     [int]$Port = 8080,
@@ -52,10 +52,40 @@ if (-not (Test-Path -LiteralPath $ModelPath)) {
 # Gemma 4 is multimodal. To accept image input, llama-server must also load the
 # vision projector (mmproj) GGUF via --mmproj. Without it the server starts in
 # text-only mode and silently ignores images.
-$UseMmproj = Test-Path -LiteralPath $MmprojPath
+#
+# The mmproj file name differs between distributions (official QAT ships
+# mmproj-model-f16.gguf, others use mmproj-BF16.gguf, etc.), so when no explicit
+# -MmprojPath is given we auto-discover any mmproj*.gguf next to the model file.
+function Resolve-MmprojPath {
+    param(
+        [string]$ExplicitPath,
+        [string]$ModelFilePath
+    )
+
+    if ($ExplicitPath) {
+        if (Test-Path -LiteralPath $ExplicitPath) {
+            return $ExplicitPath
+        }
+        Write-Warning "Specified mmproj was not found: $ExplicitPath"
+        return ""
+    }
+
+    $modelDir = Split-Path -Parent $ModelFilePath
+    $candidate = Get-ChildItem -LiteralPath $modelDir -Filter "mmproj*.gguf" -File -ErrorAction SilentlyContinue |
+        Sort-Object Name |
+        Select-Object -First 1
+    if ($candidate) {
+        return $candidate.FullName
+    }
+    return ""
+}
+
+$ResolvedMmprojPath = Resolve-MmprojPath -ExplicitPath $MmprojPath -ModelFilePath $ModelPath
+$UseMmproj = [bool]$ResolvedMmprojPath
 if (-not $UseMmproj) {
-    Write-Warning "mmproj (vision projector) not found: $MmprojPath"
+    Write-Warning "No vision projector (mmproj*.gguf) found next to the model."
     Write-Warning "llama-server will start in TEXT-ONLY mode; image recognition will be disabled."
+    Write-Warning "Download an mmproj GGUF into the model folder, or pass -MmprojPath."
 }
 
 New-Item -ItemType Directory -Force -Path $LogsDir | Out-Null
@@ -91,7 +121,7 @@ $Arguments = @(
 )
 
 if ($UseMmproj) {
-    $Arguments += @("--mmproj", $MmprojPath)
+    $Arguments += @("--mmproj", $ResolvedMmprojPath)
 }
 
 $Arguments += @(
@@ -121,7 +151,7 @@ Write-Host "Endpoint: $BaseUrl"
 Write-Host "Model alias: $Alias"
 Write-Host "Model file: $ModelPath"
 if ($UseMmproj) {
-    Write-Host "Vision (mmproj): $MmprojPath"
+    Write-Host "Vision (mmproj): $ResolvedMmprojPath"
 } else {
     Write-Host "Vision (mmproj): DISABLED (text-only mode)"
 }
