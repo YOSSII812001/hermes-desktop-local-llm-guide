@@ -211,8 +211,9 @@ Gemma 4 はマルチモーダルモデルです。画像認識（vision）を有
 
 mmproj ファイルは、言語モデルと同じ Hugging Face リポジトリ（`google/gemma-4-12B-it-qat-q4_0-gguf`）から、**言語モデルと同じフォルダ**にダウンロードします。
 ファイル名は配布元で異なります（公式QATは `mmproj-model-f16.gguf`、他の配布では `mmproj-BF16.gguf` 等）。
-`--mmproj` 対応の新しめの llama-server ビルドが必要です（古いビルドは vision 非対応のことがあります）。
-自動起動スクリプト（§12）を使う場合は、このファイルをモデルフォルダに置くだけで自動検出されます。
+`--mmproj` は llama-server に libmtmd 経由で導入された機能で、**ビルド b5332（2025年5月、PR #12898）以降**が必要です。古いビルドは vision 非対応のため `--mmproj` を受け付けません。
+本ガイドが固定している `llama.cpp-b9498` はこの閾値より新しいため対応しています。自動起動スクリプトは起動時に `llama-server --help` を確認し、`--mmproj` が無いビルドなら警告を出します。
+自動起動スクリプト（§12）を使う場合は、mmproj ファイルをモデルフォルダに置くだけで自動検出されます。
 
 `--reasoning on` と `--reasoning-budget -1` は、Gemma 4の思考を有効にして制限なし寄りにする設定です。
 思考が不要な場合は `--reasoning off` に戻せます。

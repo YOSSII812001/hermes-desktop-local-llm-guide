@@ -97,6 +97,31 @@ if (-not $UseMmproj) {
     Write-Warning "Download an mmproj GGUF into the model folder, or pass -MmprojPath."
 }
 
+# Confirm the actual binary is a multimodal-capable build. Vision (--mmproj) landed
+# in llama-server with libmtmd (PR #12898, ~build b5332, May 2025); older builds do
+# not advertise the flag. We probe `--help` so a wrong/old build is caught here
+# instead of silently dropping --mmproj at runtime.
+function Test-ServerSupportsMmproj {
+    param([string]$Exe)
+    try {
+        $help = & $Exe --help 2>&1 | Out-String
+    } catch {
+        return $null  # could not probe; do not assert either way
+    }
+    if (-not $help) {
+        return $null
+    }
+    return [bool]($help -match '--mmproj')
+}
+
+if ($UseMmproj) {
+    $supportsMmproj = Test-ServerSupportsMmproj -Exe $ServerExe
+    if ($supportsMmproj -eq $false) {
+        Write-Warning "This llama-server build does not advertise --mmproj; it may predate multimodal support."
+        Write-Warning "Use a vision-capable build (libmtmd, >= b5332 / May 2025) or image recognition will not work."
+    }
+}
+
 New-Item -ItemType Directory -Force -Path $LogsDir | Out-Null
 
 try {
