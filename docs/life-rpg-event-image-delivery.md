@@ -16,12 +16,13 @@ Life RPGが通知payloadに載せた `event_image.path` または `image_path` �
 
 ## 画像セット
 
-標準構成は140枚です。
+標準構成は150枚です。
 
 | 種類 | 枚数 | 用途 |
 |---|---:|---|
 | 既存カード画像 | 100 | 敵、クエスト、アイテム、称号、デッキ、ステータス、ボス |
 | 自律イベント画像 | 40 | 報酬箱、支援者、回復拠点、選択分岐、Anti-Vision、ボス進捗、Cron監視 |
+| Substack記事用UI画像 | 10 | HUD、クエストログ、報酬ポップアップ、スキルツリー、休息メニュー |
 
 `manifest.json` の各assetは、主に次の値を持ちます。
 
@@ -50,6 +51,7 @@ Life RPG本体では、`life_rpg_engine.py` がイベント種別を `linked_ent
 | `anti_vision` | `event:anti_vision` |
 | `boss_progress` | `event:boss_progress` |
 | `cron_watchdog` | `event:cron_watchdog` |
+| `ui_overlay` | `event:ui_overlay` |
 
 流れは次の通りです。
 
@@ -110,7 +112,7 @@ Substack下書き作成では、画像を記事本文へ貼るためにローカ
 %USERPROFILE%\liferpg-cards
 ```
 
-このフォルダを使う場合は、Life RPG本体の画像フォルダと同じ140枚構成に同期します。
+このフォルダを使う場合は、Life RPG本体の画像フォルダと同じ150枚構成に同期します。
 
 ```powershell
 $Source = "$env:LOCALAPPDATA\hermes\rpg_system\assets\images\events"
@@ -128,7 +130,7 @@ Get-ChildItem -LiteralPath $Cards -Filter "*.png" -File |
 ```
 
 Substack側の記事テーマに応じて、`manifest.json` の `category` / `linked_entity` を見て画像を選びます。
-報酬箱、支援者、回復拠点、選択分岐、Anti-Vision、ボス進捗、Cron監視の記事では、`category: event` の画像を優先できます。
+報酬箱、支援者、回復拠点、選択分岐、Anti-Vision、ボス進捗、Cron監視、UI解説の記事では、`category: event` の画像を優先できます。
 
 ## 検証
 
@@ -156,10 +158,10 @@ print({
 期待値:
 
 ```text
-manifest_assets = 140
-manifest_events = 40
-png = 140
-event_png = 40
+manifest_assets = 150
+manifest_events = 50
+png = 150
+event_png = 50
 ```
 
 代表的なdry-runです。
