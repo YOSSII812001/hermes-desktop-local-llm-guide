@@ -729,6 +729,7 @@ LLMを通すジョブ（`no_agent: false`）では、モデルの最終応答が
 
 - `state.db` の `sessions` / `messages` から、当日かつ `source != cron` の発言を最新24件まで
 - assistant / user / tool の発言。秘密情報らしき文字列は読み込み時に伏せ字化
+- `cron\output` を見る場合も、全履歴は読みません。更新が新しいジョブディレクトリだけを候補にし、各ジョブの最新Markdownだけを確認します。
 
 会話文から、語のヒット数でいくつかのシグナルを数えます（例）。
 
@@ -859,6 +860,20 @@ $python = "$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts\python.exe"
 ```powershell
 Get-Content "$env:LOCALAPPDATA\hermes\cron\autonomy_state.json"
 ```
+
+cron outputを見るときの注意:
+
+```powershell
+# 例: 対象ジョブの最新ファイルだけを見る。cron\output 全体の再帰検索は避ける。
+Get-ChildItem "$env:LOCALAPPDATA\hermes\cron\output\<job-id>" -Filter "*.md" |
+  Sort-Object LastWriteTime -Descending |
+  Select-Object -First 1 |
+  Get-Content
+```
+
+`cron\output` は運用中に増え続けます。
+監視スクリプトやデバッグ手順で `cron\output\*\*.md` を全量検索すると、Windowsでは一時的なリソース不足で落ちることがあります。
+自律heartbeatのサンプルスクリプトも、直近ジョブだけを候補にして、個別ディレクトリの読み取り失敗はその候補だけスキップします。
 
 「動いているのに通知が来ない」が正常か確認する（沈黙・配送のログ）:
 

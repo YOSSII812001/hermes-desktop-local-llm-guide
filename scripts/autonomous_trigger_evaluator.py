@@ -30,10 +30,13 @@ from typing import Any
 APPDATA = Path(os.environ.get("LOCALAPPDATA", "")) / "hermes"
 STATE_DB = APPDATA / "state.db"
 STATE_FILE = APPDATA / "cron" / "autonomy_state.json"
+CRON_OUTPUT_DIR = APPDATA / "cron" / "output"
 
 DEFAULT_MAX_MESSAGES = 24
 MAX_MESSAGE_CHARS = 800
 MINUTES_BETWEEN_NOTIFICATIONS = 90
+LATEST_CRON_RESPONSE_JOB_LIMIT = 12
+LATEST_CRON_RESPONSE_READ_LIMIT = 5
 
 INTERNAL_ONLY_TOPICS = {
     "Hermes autonomy",
@@ -170,6 +173,69 @@ def redact_text(text: str) -> str:
     return text
 
 
+def compact_text(text: str, limit: int = MAX_MESSAGE_CHARS) -> str:
+    value = " ".join(redact_text(text).replace("\r", " ").split())
+    if len(value) <= limit:
+        return value
+    return value[: limit - 1].rstrip() + "..."
+
+
+def safe_mtime(path: Path) -> float | None:
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return None
+
+
+def latest_markdown_file(directory: Path) -> tuple[float, Path] | None:
+    latest: tuple[float, Path] | None = None
+    try:
+        for file_path in directory.iterdir():
+            if file_path.suffix.lower() != ".md":
+                continue
+            mtime = safe_mtime(file_path)
+            if mtime is None:
+                continue
+            if latest is None or mtime > latest[0]:
+                latest = (mtime, file_path)
+    except OSError:
+        return None
+    return latest
+
+
+def latest_cron_response(output_dir: Path = CRON_OUTPUT_DIR) -> str:
+    if not output_dir.exists():
+        return ""
+
+    job_dirs: list[tuple[float, Path]] = []
+    try:
+        for child in output_dir.iterdir():
+            if not child.is_dir():
+                continue
+            mtime = safe_mtime(child)
+            if mtime is None:
+                continue
+            job_dirs.append((mtime, child))
+    except OSError:
+        return ""
+
+    candidates: list[tuple[float, Path]] = []
+    for _mtime, job_dir in sorted(job_dirs, reverse=True)[:LATEST_CRON_RESPONSE_JOB_LIMIT]:
+        latest = latest_markdown_file(job_dir)
+        if latest is not None:
+            candidates.append(latest)
+
+    for _mtime, file_path in sorted(candidates, reverse=True)[:LATEST_CRON_RESPONSE_READ_LIMIT]:
+        try:
+            text = file_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        marker = "## Response"
+        if marker in text:
+            return compact_text(text.split(marker, 1)[1], 600)
+    return ""
+
+
 def detect_sensitive_hits(messages: list[dict[str, Any]]) -> list[dict[str, str]]:
     hits: list[dict[str, str]] = []
     for message in messages:
@@ -292,13 +358,17 @@ def evaluate(
     *,
     messages: list[dict[str, Any]] | None = None,
     state: dict[str, Any] | None = None,
+    last_cron_response: str | None = None,
     force: bool = False,
 ) -> dict[str, Any]:
     messages = messages if messages is not None else load_recent_messages()
     state = state if state is not None else read_state()
+    last_cron_response = last_cron_response if last_cron_response is not None else latest_cron_response()
 
     if not messages:
-        return silent_payload("no-recent-messages")
+        return silent_payload("no-recent-messages") | {
+            "last_cron_response": last_cron_response,
+        }
 
     sensitive_hits = detect_sensitive_hits(messages)
     topic = infer_topic(messages, sensitive_hits)
@@ -310,12 +380,14 @@ def evaluate(
     else:
         return silent_payload("no-actionable-signal") | {
             "topic": topic,
+            "last_cron_response": last_cron_response,
         }
 
     suppress, reason = should_suppress(topic, note, state, force=force)
     if suppress:
         return silent_payload(reason) | {
             "topic": topic,
+            "last_cron_response": last_cron_response,
         }
 
     return {
@@ -325,6 +397,7 @@ def evaluate(
         "reason": reason,
         "topic": topic,
         "markdown": note,
+        "last_cron_response": last_cron_response,
     }
 
 

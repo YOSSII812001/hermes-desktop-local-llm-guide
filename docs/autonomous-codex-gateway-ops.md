@@ -725,6 +725,11 @@ cron:
 LLMを起こすjobでは、`[SILENT]` の場合にDiscordへ配送しないようにします。
 ログでは、cron outputと `agent.log` の delivery skip を確認します。
 
+cron outputは増え続けるため、heartbeat scriptや調査コマンドで全履歴を再帰検索しないでください。
+直近ジョブディレクトリだけを候補にし、各ジョブの最新Markdownだけを見る設計にします。
+Windowsでは、`cron\output\*\*.md` の全量sortが `WinError 1450` などの一時的なリソース不足を起こすことがあります。
+個別ディレクトリの読み取りに失敗した場合は、その候補だけをスキップし、heartbeat全体は成功扱いで続けます。
+
 重要な境界:
 
 - Hermes内部の自律会話、直近heartbeat、スコア計算、次に確認する候補はユーザー通知にしない
@@ -758,6 +763,12 @@ cron job例:
 ```powershell
 py -X pycache_prefix="$env:TEMP\hermes-pycache" -m py_compile .\scripts\autonomous_trigger_evaluator.py
 py .\scripts\autonomous_trigger_evaluator.py --no-state-write --json
+
+# cron outputを手動で見る場合も、対象jobの最新1件に絞る。
+Get-ChildItem "$env:LOCALAPPDATA\hermes\cron\output\<job-id>" -Filter "*.md" |
+  Sort-Object LastWriteTime -Descending |
+  Select-Object -First 1 |
+  Get-Content
 ```
 
 期待する挙動:
