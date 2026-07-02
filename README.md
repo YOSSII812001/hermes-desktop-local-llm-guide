@@ -15,6 +15,7 @@ Discord DM、Obsidian、Codex skills、各種Tool useまで含めた個人メン
 - [クラウドNemotronを手動切替で使う（Codex不在時の代役）](docs/nemotron-cloud-model.md)
 - [Life RPG の精算は発表と再計算が別物（XP取りこぼしと reconcile）](docs/life-rpg-xp-settlement-reconcile.md)
 - [Life RPG イベント画像のマッピングと配送](docs/life-rpg-event-image-delivery.md)
+- [Life RPG Discord メッセージ文法（STATE→MEANING→ACTION）](docs/life-rpg-discord-message-grammar.md)
 - [安全な設定サンプル](examples/)
 
 ## AIへ渡すとき
