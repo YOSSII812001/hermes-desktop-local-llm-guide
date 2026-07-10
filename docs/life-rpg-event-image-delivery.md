@@ -35,6 +35,19 @@ Life RPGが通知payloadに載せた `event_image.path` または `image_path` �
 | `linked_entity` | Life RPG上の意味。例: `event:cron_watchdog` |
 | `sha256` | ファイル重複や破損の検証用 |
 
+### サンプル
+
+実際の画像の例です（リポジトリには縮小版を置いています。原本は1254x1254のPNG）。
+
+| 種類 | 例 |
+|---|---|
+| 既存カード画像（敵） | <img src="../assets/images/enemy-short-term-retreat-encounter.png" width="240"> |
+| 自律イベント画像（Cron監視 / 選択分岐） | <img src="../assets/images/event-cron-clocktower-ok.png" width="240"> <img src="../assets/images/event-choice-crossroads-four-paths.png" width="240"> |
+| 自律イベント画像（報酬箱 / 回復拠点） | <img src="../assets/images/event-reward-chest-opening-reward.png" width="240"> <img src="../assets/images/event-sanctuary-hearth-journal.png" width="240"> |
+| Substack記事用UI画像 | <img src="../assets/images/event-ui-daily-quest-log.png" width="240"> |
+
+本文の `MEDIA:` の例に出てくる `event-cron-clocktower-ok.png` は、上の「Cron監視」の画像です。
+
 ## Life RPG側の選択ロジック
 
 Life RPG本体では、`life_rpg_engine.py` がイベント種別を `linked_entity` に寄せます。
