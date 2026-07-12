@@ -41,13 +41,15 @@ class ParseStartActionTests(unittest.TestCase):
 
 class EnsureTests(unittest.TestCase):
     def _call_ensure(self, *, returncode=0, stdout="", exists=True):
-        result = subprocess.CompletedProcess(
-            [], returncode, stdout=stdout, stderr=""
-        )
+        def run_start(command, **_kwargs):
+            action_index = command.index("-ActionFile") + 1
+            Path(command[action_index]).write_text(stdout, encoding="utf-8")
+            return subprocess.CompletedProcess(command, returncode)
+
         with (
             patch.object(Path, "exists", return_value=exists),
             patch.object(
-                ensure_llm.subprocess, "run", return_value=result
+                ensure_llm.subprocess, "run", side_effect=run_start
             ) as run,
             patch.object(
                 ensure_llm, "wait_until_ready", return_value=True
@@ -64,6 +66,13 @@ class EnsureTests(unittest.TestCase):
 
         self.assertTrue(actual)
         run.assert_called_once()
+        args, kwargs = run.call_args
+        self.assertIn("-ActionFile", args[0])
+        self.assertIs(kwargs["stdout"], subprocess.DEVNULL)
+        self.assertIs(kwargs["stderr"], subprocess.DEVNULL)
+        self.assertNotIn("capture_output", kwargs)
+        action_index = args[0].index("-ActionFile") + 1
+        self.assertFalse(Path(args[0][action_index]).exists())
         wait.assert_called_once_with(240)
         marker.assert_called_once_with()
 
@@ -100,6 +109,45 @@ class EnsureTests(unittest.TestCase):
 
         self.assertFalse(actual)
         run.assert_called_once()
+        wait.assert_not_called()
+        marker.assert_not_called()
+
+    def test_temporary_file_creation_failure_does_not_invoke_subprocess(self):
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch.object(
+                ensure_llm.tempfile,
+                "NamedTemporaryFile",
+                side_effect=OSError("disk unavailable"),
+            ),
+            patch.object(ensure_llm.subprocess, "run") as run,
+        ):
+            self.assertFalse(ensure_llm.ensure())
+
+        run.assert_not_called()
+
+    def test_timeout_removes_action_file_and_fails_without_waiting(self):
+        action_paths = []
+
+        def time_out(command, **_kwargs):
+            action_index = command.index("-ActionFile") + 1
+            action_path = Path(command[action_index])
+            action_path.write_text(
+                "HERMES_LLAMA_SERVER_ACTION=started\n", encoding="utf-8"
+            )
+            action_paths.append(action_path)
+            raise subprocess.TimeoutExpired(command, 120)
+
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch.object(ensure_llm.subprocess, "run", side_effect=time_out),
+            patch.object(ensure_llm, "wait_until_ready") as wait,
+            patch.object(ensure_llm, "write_marker") as marker,
+        ):
+            self.assertFalse(ensure_llm.ensure())
+
+        self.assertEqual(len(action_paths), 1)
+        self.assertFalse(action_paths[0].exists())
         wait.assert_not_called()
         marker.assert_not_called()
 

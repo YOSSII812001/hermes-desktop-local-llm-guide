@@ -19,6 +19,7 @@ import datetime as dt
 import json
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -88,6 +89,15 @@ def ensure(max_wait: int = READY_WAIT_SECONDS) -> bool:
     """Make sure llama-server is ready. Returns True when it is."""
     if not START_SCRIPT.exists():
         return False
+
+    try:
+        with tempfile.NamedTemporaryFile(
+            prefix="hermes-llama-action-", suffix=".txt", delete=False
+        ) as action_handle:
+            action_path = Path(action_handle.name)
+    except OSError:
+        return False
+
     try:
         result = subprocess.run(
             [
@@ -97,18 +107,29 @@ def ensure(max_wait: int = READY_WAIT_SECONDS) -> bool:
                 "Bypass",
                 "-File",
                 str(START_SCRIPT),
+                "-ActionFile",
+                str(action_path),
             ],
-            capture_output=True,
-            encoding="utf-8",
-            errors="replace",
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
             timeout=120,
         )
     except (OSError, subprocess.TimeoutExpired):
         return False
+    finally:
+        try:
+            action_output = action_path.read_text(encoding="utf-8")
+        except OSError:
+            action_output = ""
+        try:
+            action_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
     if result.returncode != 0:
         return False
 
-    action = parse_start_action(result.stdout)
+    action = parse_start_action(action_output)
     if action is None:
         return False
     if action == "started":
