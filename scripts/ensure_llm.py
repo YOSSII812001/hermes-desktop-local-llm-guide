@@ -32,6 +32,8 @@ START_SCRIPT = Path.home() / ".hermes" / "scripts" / "start-gemma-llama-server.p
 MARKER_NAME = "llama_started_by_cron.json"
 READY_WAIT_SECONDS = 240
 POLL_INTERVAL_SECONDS = 2
+START_ACTION_PREFIX = "HERMES_LLAMA_SERVER_ACTION="
+START_ACTIONS = frozenset({"started", "reused"})
 
 
 def marker_path() -> Path:
@@ -59,6 +61,19 @@ def wait_until_ready(max_wait: int = READY_WAIT_SECONDS) -> bool:
     return probe() == "ready"
 
 
+def parse_start_action(stdout: str) -> str | None:
+    """Return the unique valid launcher sentinel, if present."""
+    sentinel_lines = [
+        line for line in stdout.splitlines()
+        if line.startswith(START_ACTION_PREFIX)
+    ]
+    if len(sentinel_lines) != 1:
+        return None
+
+    action = sentinel_lines[0][len(START_ACTION_PREFIX):]
+    return action if action in START_ACTIONS else None
+
+
 def write_marker() -> None:
     atomic_write_json(
         marker_path(),
@@ -71,13 +86,6 @@ def write_marker() -> None:
 
 def ensure(max_wait: int = READY_WAIT_SECONDS) -> bool:
     """Make sure llama-server is ready. Returns True when it is."""
-    state = probe()
-    if state == "ready":
-        return True
-    if state == "loading":
-        # Someone else (desktop launcher, earlier cron) already started it.
-        return wait_until_ready(max_wait)
-
     if not START_SCRIPT.exists():
         return False
     try:
@@ -100,8 +108,12 @@ def ensure(max_wait: int = READY_WAIT_SECONDS) -> bool:
     if result.returncode != 0:
         return False
 
-    # We initiated this start; record it so the reaper can clean up later.
-    write_marker()
+    action = parse_start_action(result.stdout)
+    if action is None:
+        return False
+    if action == "started":
+        # We initiated this start; record it so the reaper can clean up later.
+        write_marker()
     return wait_until_ready(max_wait)
 
 

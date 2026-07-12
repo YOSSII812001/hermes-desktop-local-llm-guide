@@ -156,12 +156,28 @@ Invoke-RestMethod http://127.0.0.1:9120/api/status | ConvertTo-Json -Depth 5
 
 ```text
 gemma-4-12b-it-qat-q4_0.gguf
+mmproj-gemma-4-12b-it-qat-q4_0.gguf
 ```
 
 Hugging Face repo:
 
 ```text
 google/gemma-4-12B-it-qat-q4_0-gguf
+```
+
+モデル本体と同じディレクトリへ、次の2ファイルを保存します。
+
+- `gemma-4-12b-it-qat-q4_0.gguf`
+- `mmproj-gemma-4-12b-it-qat-q4_0.gguf`
+
+取得例:
+
+```powershell
+huggingface-cli download `
+  google/gemma-4-12B-it-qat-q4_0-gguf `
+  gemma-4-12b-it-qat-q4_0.gguf `
+  mmproj-gemma-4-12b-it-qat-q4_0.gguf `
+  --local-dir "C:\Users\<USER>\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf"
 ```
 
 Q8とQ6_Kも動きました。
@@ -171,9 +187,11 @@ Q8とQ6_Kも動きました。
 
 ```text
 C:\Users\<USER>\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf
+C:\Users\<USER>\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\mmproj-gemma-4-12b-it-qat-q4_0.gguf
 ```
 
-`huggingface-cli download` などでローカルへ保存しておけば使えます。
+プロジェクターは画像入力をモデルへ渡すためのファイルです。
+モデル本体と同じディレクトリへ保存し、llama-server起動時に `--mmproj` で指定します。
 LM Studio本体を起動する必要はありません。
 
 ## 2. Gemma 4対応のllama-serverを用意する
@@ -201,6 +219,7 @@ C:\Users\<USER>\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe
 ```powershell
 & "C:\Users\<USER>\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe" `
   -m "C:\Users\<USER>\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf" `
+  --mmproj "C:\Users\<USER>\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\mmproj-gemma-4-12b-it-qat-q4_0.gguf" `
   --alias gemma-4-12b-it `
   --host 127.0.0.1 `
   --port 8080 `
@@ -229,6 +248,36 @@ Invoke-RestMethod http://127.0.0.1:8080/v1/models | ConvertTo-Json -Depth 5
 ```
 
 `id` に `gemma-4-12b-it` が出ればOKです。
+
+画像入力は別に確認します。まず、起動ログに
+`mmproj-gemma-4-12b-it-qat-q4_0.gguf` が出ており、projector読込エラーがないことを確認します。
+次に、ローカルPNGをData URLの `image_url` として `/v1/chat/completions` へ送ります。
+
+```powershell
+$pngPath = "C:\Users\<USER>\Pictures\known-image.png"
+$base64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($pngPath))
+$body = @{
+  model = "gemma-4-12b-it"
+  messages = @(@{
+    role = "user"
+    content = @(
+      @{ type = "text"; text = "この画像の内容を短く説明してください。" }
+      @{ type = "image_url"; image_url = @{ url = "data:image/png;base64,$base64" } }
+    )
+  })
+  max_tokens = 256
+} | ConvertTo-Json -Depth 10
+
+$response = Invoke-RestMethod `
+  -Uri "http://127.0.0.1:8080/v1/chat/completions" `
+  -Method Post `
+  -ContentType "application/json" `
+  -Body $body
+
+$response.choices[0].message.content
+```
+
+APIエラーがなく、応答が既知の画像内容を説明できればPASSです。
 
 ## 4. Hermes Desktop側のconfig.yamlを変更する
 
@@ -434,7 +483,21 @@ scripts/x-research-codex.ps1
 ```powershell
 $ServerExe = "C:\Users\<USER>\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe"
 $ModelPath = "C:\Users\<USER>\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf"
+$MmprojPath = "C:\Users\<USER>\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\mmproj-gemma-4-12b-it-qat-q4_0.gguf"
 ```
+
+起動スクリプトはモデル・alias・projectorが一致する既存プロセスだけを再利用します。
+projectorなしの旧プロセスは停止し、画像入力対応の構成で起動し直します。
+
+`scripts/start-hermes-desktop-with-local-llm.ps1` を使う場合も、同じモデルとprojectorを期待値として指定します。
+
+```powershell
+$ExpectedServerExePath = "C:\Users\<USER>\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe"
+$ExpectedModelPath = "C:\Users\<USER>\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf"
+$ExpectedProjectorPath = "C:\Users\<USER>\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\mmproj-gemma-4-12b-it-qat-q4_0.gguf"
+```
+
+`ServerExe`、`ExpectedServerExePath`、`ModelPath`、`MmprojPath`、`ExpectedModelPath`、`ExpectedProjectorPath` は、同じ公式QAT Q4_0構成を指すようにそろえてください。再利用と停止は実行ファイルの実体パスも照合するため、別の `llama-server.exe` を誤って操作しません。
 
 次にショートカットを作ります。
 
@@ -621,6 +684,7 @@ Hermes Agent Desktop
 
 llama-server
   -> model file: gemma-4-12b-it-qat-q4_0.gguf
+  -> projector: mmproj-gemma-4-12b-it-qat-q4_0.gguf
   -> alias: gemma-4-12b-it
   -> port: 8080
   -> ctx-size: 262144
@@ -1023,8 +1087,8 @@ evaluate() に**減点だけ**を足します（fatigue_penalty=8）。
 
 解法は、チェックインの直前にllama-serverを起こす小さなスクリプト `scripts\ensure_llm.py` です。
 
-- pre-runで `/health` をプローブする（llama.cppは 200=ready ／ 503=ロード中）
-- 落ちていれば、既存の起動用PS1を呼ぶ
+- pre-runで既存の起動用PS1を呼び、完全一致する既存プロセスなら再利用する
+- 起動または再利用の判定後、`/health` をプローブする（llama.cppは 200=ready ／ 503=ロード中）
 - ready になるまで2秒間隔でポーリング（最大240秒）
 - **自分が起動したときだけ** `cron\llama_started_by_cron.json` にマーカーを書く
 

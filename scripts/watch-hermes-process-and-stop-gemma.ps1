@@ -1,6 +1,12 @@
 param(
     [Parameter(Mandatory = $true)]
     [int]$HermesPid,
+    [string]$ServerExe = "$env:USERPROFILE\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe",
+    [string]$ModelPath = "$env:USERPROFILE\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf",
+    [string]$MmprojPath = "$env:USERPROFILE\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\mmproj-gemma-4-12b-it-qat-q4_0.gguf",
+    [string]$Alias = "gemma-4-12b-it",
+    [string]$HostAddress = "127.0.0.1",
+    [int]$Port = 8080,
     [string]$StopLlamaScript = "$PSScriptRoot\stop-gemma-llama-server.ps1",
     [string]$LogsDir = "$env:USERPROFILE\.hermes\logs"
 )
@@ -27,7 +33,13 @@ try {
     }
 
     if (Test-Path -LiteralPath $StopLlamaScript) {
-        & $StopLlamaScript 2>&1 | ForEach-Object {
+        & $StopLlamaScript `
+            -ServerExe $ServerExe `
+            -ModelPath $ModelPath `
+            -MmprojPath $MmprojPath `
+            -Alias $Alias `
+            -HostAddress $HostAddress `
+            -Port $Port 2>&1 | ForEach-Object {
             Write-LifecycleLog "one-shot stop: $($_.ToString())"
         }
     } else {
