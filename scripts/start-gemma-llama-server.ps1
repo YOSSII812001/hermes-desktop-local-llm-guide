@@ -6,6 +6,8 @@ param(
     [string]$HostAddress = "127.0.0.1",
     [int]$Port = 8080,
     [int]$ContextSize = 262144,
+    [ValidateRange(0, 2147483647)]
+    [int]$ContextCheckpoints = 0,
     [string]$LogsDir = "$env:USERPROFILE\.hermes\logs",
     [ValidateSet("on", "off", "auto")]
     [string]$Reasoning = "on",
@@ -154,7 +156,8 @@ function Get-ExpectedGemmaServerProcess {
             (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--alias" -ExpectedValue $Alias) -and
             (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--host" -ExpectedValue $HostAddress) -and
             (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--port" -ExpectedValue ([string]$Port)) -and
-            (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--mmproj" -ExpectedValue $MmprojPath -PathValue)
+            (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--mmproj" -ExpectedValue $MmprojPath -PathValue) -and
+            (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--ctx-checkpoints" -ExpectedValue ([string]$ContextCheckpoints))
         }
 }
 
@@ -229,6 +232,7 @@ $Arguments = @(
     "--port", [string]$Port,
     "--ctx-size", [string]$ContextSize,
     "--parallel", "1",
+    "--ctx-checkpoints", [string]$ContextCheckpoints,
     "--reasoning", $Reasoning,
     "--reasoning-budget", [string]$ReasoningBudget,
     "--reasoning-format", $ReasoningFormat,
@@ -253,6 +257,7 @@ Write-Host "Model alias: $Alias"
 Write-Host "Model file: $ModelPath"
 Write-Host "Projector file: $MmprojPath"
 Write-Host "Context size: $ContextSize"
+Write-Host "Context checkpoints: $ContextCheckpoints"
 Write-Host "KV cache: K=$CacheTypeK V=$CacheTypeV"
 Write-Host "Logs: $StdOutLog"
 Write-Host "Errors: $StdErrLog"

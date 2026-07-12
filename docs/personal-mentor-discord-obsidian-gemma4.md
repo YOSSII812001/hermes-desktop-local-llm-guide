@@ -111,12 +111,15 @@ Gemma 4は、古いllama.cppでは読み込めないことがあります。
   --port 8080 `
   --ctx-size 262144 `
   --parallel 1 `
+  --ctx-checkpoints 0 `
   --reasoning on `
   --reasoning-budget -1 `
   --reasoning-format deepseek `
   --cache-type-k q8_0 `
   --cache-type-v q8_0
 ```
+
+Gemma 4ではcontext checkpointの既定値32が画像処理時のメモリ負荷とクラッシュ要因になるため、この構成では`--parallel 1 --ctx-checkpoints 0`で無効にします。
 
 確認:
 
