@@ -68,6 +68,14 @@ AIは手順を再現できますが、秘密情報と実ファイルパスはユ
 - チェックイン直前に `llama-server` を自動起動し、使い終わったら自動で回収する
 - `approvals.mode: off` で承認なしのYOLO運用にする
 
+## Life RPG イベント画像の例
+
+Life RPG は敵・クエスト・自律イベントごとにカード画像を持ち、Hermes Agent Desktop 経由で Discord へ `MEDIA:<local_path>` として配送されます。仕組みの詳細は [Life RPG イベント画像のマッピングと配送](docs/life-rpg-event-image-delivery.md) を見てください。
+
+| Cron監視 | 選択分岐 | 報酬箱 |
+|---|---|---|
+| <img src="assets/images/event-cron-clocktower-ok.png" width="260"> | <img src="assets/images/event-choice-crossroads-four-paths.png" width="260"> | <img src="assets/images/event-reward-chest-opening-reward.png" width="260"> |
+
 ## 全体構成
 
 ```mermaid
