@@ -112,14 +112,14 @@ Hermes Desktop側から見ると、ローカルにあるOpenAI互換エンドポ
 | OS | Windows |
 | GPU | NVIDIA GeForce RTX 4070 Ti SUPER 16GB |
 | Hermes Agent Desktop | v0.15.1 |
-| llama.cpp | CUDA対応版 b9498 |
+| llama.cpp | CUDA 12.4対応版 b9637 |
 | モデル | `gemma-4-12b-it-qat-q4_0.gguf` |
-| コンテキスト長 | 262144 |
+| コンテキスト長 | 65536 |
 | KVキャッシュ | `q8_0` |
 | APIエンドポイント | `http://127.0.0.1:8080/v1` |
 
 最初はQ8とQ6_Kを使いました。
-現在は公式Google QAT Q4_0モデルを使い、256Kコンテキストで運用しています。
+現在は公式Google QAT Q4_0モデルを使い、安定性を優先して64Kコンテキストで運用しています。
 
 ## 重要な結論
 
@@ -204,12 +204,17 @@ unknown model architecture: 'gemma4'
 ```
 
 この場合は、新しいllama.cppを使ってください。
-今回の検証では、CUDA 12.4対応の `llama.cpp b9498` で動きました。
+今回の検証では、CUDA 12.4対応の `llama.cpp b9637` を使います。b9498は高メモリ圧力下のGemma 4画像処理で断続的にクラッシュしたため、使用しません。
+
+公式releaseの次の2ファイルを同じフォルダへ展開します。
+
+- `llama-b9637-bin-win-cuda-12.4-x64.zip`（SHA-256: `e0080832743b478fc3d1a465c2d281091c3e02145d70ad06ad181f81895270a8`）
+- `cudart-llama-bin-win-cuda-12.4-x64.zip`（SHA-256: `8c79a9b226de4b3cacfd1f83d24f962d0773be79f1e7b75c6af4ded7e32ae1d6`）
 
 配置例:
 
 ```text
-C:\Users\<USER>\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe
+C:\Users\<USER>\tools\llama.cpp-b9637-cuda-12.4\llama-server.exe
 ```
 
 ## 3. llama-serverを起動する
@@ -217,13 +222,13 @@ C:\Users\<USER>\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe
 最小構成は次のようなコマンドです。
 
 ```powershell
-& "C:\Users\<USER>\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe" `
+& "C:\Users\<USER>\tools\llama.cpp-b9637-cuda-12.4\llama-server.exe" `
   -m "C:\Users\<USER>\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf" `
   --mmproj "C:\Users\<USER>\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\mmproj-gemma-4-12b-it-qat-q4_0.gguf" `
   --alias gemma-4-12b-it `
   --host 127.0.0.1 `
   --port 8080 `
-  --ctx-size 262144 `
+  --ctx-size 65536 `
   --parallel 1 `
   --ctx-checkpoints 0 `
   --reasoning on `
@@ -241,8 +246,8 @@ Hermes側ではこの名前をモデル名として使います。
 `--reasoning on` と `--reasoning-budget -1` は、Gemma 4の思考を有効にして制限なし寄りにする設定です。
 思考が不要な場合は `--reasoning off` に戻せます。
 
-256KコンテキストではKVキャッシュのVRAM使用量が増えます。
-今回の環境では `--cache-type-k q8_0` と `--cache-type-v q8_0` を使い、公式QAT Q4_0モデルを256Kで起動できました。
+長いコンテキストではKVキャッシュのVRAM使用量が増えます。
+今回の環境では `--cache-type-k q8_0` と `--cache-type-v q8_0` を使い、公式QAT Q4_0モデルを64Kで安定運用します。
 
 起動確認:
 
@@ -303,7 +308,7 @@ model:
   base_url: http://127.0.0.1:8080/v1
   default: gemma-4-12b-it
   provider: custom
-  context_length: 262144
+  context_length: 65536
   api_key: not-needed
 
 approvals:
@@ -325,12 +330,12 @@ which is below the minimum 64,000 required by Hermes Agent.
 ```
 
 そのため、`llama-server` とHermes設定の両方を64K以上にします。
-現在は公式QAT Q4_0モデルで、256Kにそろえて運用しています。
+現在は公式QAT Q4_0モデルで、Hermesの最低要件を満たす64Kにそろえて運用しています。
 
 `llama-server`:
 
 ```powershell
---ctx-size 262144
+--ctx-size 65536
 --cache-type-k q8_0
 --cache-type-v q8_0
 ```
@@ -339,7 +344,7 @@ Hermes:
 
 ```yaml
 model:
-  context_length: 262144
+  context_length: 65536
 ```
 
 ## 6. Hermes Desktopを再起動する
@@ -368,8 +373,8 @@ Invoke-RestMethod http://127.0.0.1:9120/api/model/info | ConvertTo-Json -Depth 5
 {
   "model": "gemma-4-12b-it",
   "provider": "custom",
-  "config_context_length": 262144,
-  "effective_context_length": 262144
+  "config_context_length": 65536,
+  "effective_context_length": 65536
 }
 ```
 
@@ -484,7 +489,7 @@ scripts/x-research-codex.ps1
 まず `scripts/start-gemma-llama-server.ps1` の先頭を自分の環境に合わせます。
 
 ```powershell
-$ServerExe = "C:\Users\<USER>\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe"
+$ServerExe = "C:\Users\<USER>\tools\llama.cpp-b9637-cuda-12.4\llama-server.exe"
 $ModelPath = "C:\Users\<USER>\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf"
 $MmprojPath = "C:\Users\<USER>\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\mmproj-gemma-4-12b-it-qat-q4_0.gguf"
 ```
@@ -495,13 +500,14 @@ projectorなしの旧プロセスは停止し、画像入力対応の構成で�
 `scripts/start-hermes-desktop-with-local-llm.ps1` を使う場合も、同じモデルとprojectorを期待値として指定します。
 
 ```powershell
-$ExpectedServerExePath = "C:\Users\<USER>\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe"
+$ExpectedServerExePath = "C:\Users\<USER>\tools\llama.cpp-b9637-cuda-12.4\llama-server.exe"
 $ExpectedModelPath = "C:\Users\<USER>\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf"
 $ExpectedProjectorPath = "C:\Users\<USER>\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\mmproj-gemma-4-12b-it-qat-q4_0.gguf"
+$ExpectedContextSize = 65536
 $ExpectedContextCheckpoints = 0
 ```
 
-`ServerExe`、`ExpectedServerExePath`、`ModelPath`、`MmprojPath`、`ExpectedModelPath`、`ExpectedProjectorPath` は、同じ公式QAT Q4_0構成を指すようにそろえてください。起動スクリプトとランチャーは`ContextCheckpoints=0`も照合し、既定値32で動く旧プロセスを再利用しません。再利用と停止は実行ファイルの実体パスも照合するため、別の `llama-server.exe` を誤って操作しません。
+`ServerExe`、`ExpectedServerExePath`、`ModelPath`、`MmprojPath`、`ExpectedModelPath`、`ExpectedProjectorPath` は、同じ公式QAT Q4_0構成を指すようにそろえてください。起動スクリプトとランチャーは`ContextSize=65536`と`ContextCheckpoints=0`も照合し、262Kまたはcheckpoint既定値32で動く旧プロセスを再利用しません。再利用と停止は実行ファイルの実体パスも照合するため、別の `llama-server.exe` を誤って操作しません。
 
 次にショートカットを作ります。
 
@@ -624,12 +630,12 @@ Gemma 4対応版に更新してください。
 ### コンテキスト長が短くて失敗する
 
 Hermes Agentは最低64K程度を要求する場合があります。
-現在のGemma 4 QAT Q4_0構成では256Kで起動できています。
+現在のGemma 4 QAT Q4_0構成では64Kを標準にしています。256Kは高メモリ圧力下で画像処理が不安定になったため使いません。
 
 `llama-server`:
 
 ```powershell
---ctx-size 262144
+--ctx-size 65536
 --cache-type-k q8_0
 --cache-type-v q8_0
 ```
@@ -638,7 +644,7 @@ Hermes:
 
 ```yaml
 model:
-  context_length: 262144
+  context_length: 65536
 ```
 
 ### 返答が遅い
@@ -668,7 +674,7 @@ nvidia-smi
 - `/v1/models` が返っても、Hermes側の設定が合っているとは限らない
 - 既存チャットは古いモデル名をセッションDBに持つことがある
 - Hermes Agentでは64K以上のコンテキストを満たす必要がある
-- Gemma 4 QAT Q4_0は256Kコンテキストで起動できた
+- Gemma 4 QAT Q4_0は64Kコンテキストを安定構成とする
 - Gemma 4は古いllama.cppでは読めない
 - Q8とQ6_Kも動くが、現在は公式Google QAT Q4_0を標準にする
 - LM StudioやTTSなど、GPUを握る常駐プロセスは速度に大きく影響する
@@ -684,14 +690,14 @@ Hermes Agent Desktop
   -> provider: custom
   -> base_url: http://127.0.0.1:8080/v1
   -> model: gemma-4-12b-it
-  -> context_length: 262144
+  -> context_length: 65536
 
 llama-server
   -> model file: gemma-4-12b-it-qat-q4_0.gguf
   -> projector: mmproj-gemma-4-12b-it-qat-q4_0.gguf
   -> alias: gemma-4-12b-it
   -> port: 8080
-  -> ctx-size: 262144
+  -> ctx-size: 65536
   -> cache-type-k/v: q8_0
   -> reasoning: on
   -> reasoning-budget: -1

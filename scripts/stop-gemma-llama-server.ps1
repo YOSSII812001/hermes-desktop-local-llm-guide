@@ -1,5 +1,5 @@
 param(
-    [string]$ServerExe = "$env:USERPROFILE\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe",
+    [string]$ServerExe = "$env:USERPROFILE\tools\llama.cpp-b9637-cuda-12.4\llama-server.exe",
     [string]$ModelPath = "$env:USERPROFILE\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf",
     [string]$MmprojPath = "$env:USERPROFILE\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\mmproj-gemma-4-12b-it-qat-q4_0.gguf",
     [string]$Alias = "gemma-4-12b-it",
