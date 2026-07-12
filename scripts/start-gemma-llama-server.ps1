@@ -10,6 +10,7 @@ param(
     [ValidateRange(0, 2147483647)]
     [int]$ContextCheckpoints = 0,
     [string]$LogsDir = "$env:USERPROFILE\.hermes\logs",
+    [string]$ActionFile = "",
     [ValidateSet("on", "off", "auto")]
     [string]$Reasoning = "on",
     [int]$ReasoningBudget = -1,
@@ -38,6 +39,26 @@ function ConvertTo-WindowsCommandLineArgument {
         return '"' + $Value + '"'
     }
     return $Value
+}
+
+function Write-ServerAction {
+    param([ValidateSet("started", "reused")][string]$Action)
+
+    $line = "HERMES_LLAMA_SERVER_ACTION=$Action"
+    Write-Output $line
+
+    if (-not [string]::IsNullOrWhiteSpace($ActionFile)) {
+        $fullPath = [System.IO.Path]::GetFullPath($ActionFile)
+        $directory = Split-Path -Parent $fullPath
+        if (-not (Test-Path -LiteralPath $directory -PathType Container)) {
+            New-Item -ItemType Directory -Force -Path $directory | Out-Null
+        }
+        [System.IO.File]::WriteAllText(
+            $fullPath,
+            $line,
+            [System.Text.UTF8Encoding]::new($false)
+        )
+    }
 }
 
 function Resolve-ComparablePath {
@@ -194,7 +215,7 @@ New-Item -ItemType Directory -Force -Path $LogsDir | Out-Null
 
 $expectedProcesses = @(Get-ExpectedGemmaServerProcess)
 if ($expectedProcesses.Count -gt 0) {
-    Write-Output "HERMES_LLAMA_SERVER_ACTION=reused"
+    Write-ServerAction -Action "reused"
     Write-Host "Expected Gemma llama-server is already running at $BaseUrl"
     try {
         $models = Invoke-RestMethod -Uri "$BaseUrl/models" -TimeoutSec 2
@@ -252,7 +273,7 @@ $process = Start-Process `
     -WindowStyle Hidden `
     -PassThru
 
-Write-Output "HERMES_LLAMA_SERVER_ACTION=started"
+Write-ServerAction -Action "started"
 Write-Host "Started llama-server pid=$($process.Id)"
 Write-Host "Endpoint: $BaseUrl"
 Write-Host "Model alias: $Alias"
