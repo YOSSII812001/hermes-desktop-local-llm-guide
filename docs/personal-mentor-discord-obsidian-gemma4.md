@@ -105,6 +105,7 @@ Gemma 4は、古いllama.cppでは読み込めないことがあります。
 ```powershell
 & "$env:USERPROFILE\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe" `
   -m "$env:USERPROFILE\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf" `
+  --mmproj "$env:USERPROFILE\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\mmproj-gemma-4-12b-it-qat-q4_0.gguf" `
   --alias gemma-4-12b-it `
   --host 127.0.0.1 `
   --port 8080 `
@@ -424,12 +425,16 @@ $env:HERMES_CONFIG_DIR = "$env:LOCALAPPDATA\hermes"
 | `browser` | OK | CLIでは動作確認済み。Discordでは未開放 |
 | `web_search` | OK | `ddgs` で検索成功 |
 | `tts` | OK | 音声ファイル生成成功 |
-| `vision` | 制限あり | Tool登録はあるが、ローカルGemma側が画像入力に未対応 |
+| `vision` | 条件付きOK | HermesのTool登録とモデル画像入力は別レイヤー。`--mmproj`付き起動と画像API実証が必要 |
 | `image_gen` | 未設定 | バックエンド未設定で実体Toolなし |
 | `web_extract` | 未設定 | `ddgs` は抽出非対応 |
 
 `hermes tools --summary` だけでは不十分です。
 Toolsetが表示されても、実体Toolが登録されていないことがあります。
+
+`vision` Toolの登録だけでは、モデルが画像を読めるとは限りません。
+Gemma 4側は `mmproj-gemma-4-12b-it-qat-q4_0.gguf` を `--mmproj` で読み込み、
+`/v1/chat/completions` の `image_url` に渡した既知の画像内容を説明できることまで確認します。
 
 Pythonから実体Toolを確認する例:
 

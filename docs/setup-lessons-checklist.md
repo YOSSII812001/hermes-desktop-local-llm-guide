@@ -27,6 +27,7 @@
 | 256KではKVキャッシュのVRAMが大きくなる | README、詳細メモ、config例 | `--cache-type-k q8_0` と `--cache-type-v q8_0` で余裕を作る |
 | Gemma 4は古いllama.cppでは読めないことがある | README、詳細メモ | `unknown model architecture: 'gemma4'` が出たら更新する |
 | 16GB VRAMでは公式QAT Q4_0が現実的 | README | `google/gemma-4-12B-it-qat-q4_0-gguf` を第一候補にする |
+| Gemma 4の画像入力にはprojectorが必要 | README、詳細メモ | `mmproj-gemma-4-12b-it-qat-q4_0.gguf` を同じディレクトリへ置き、`--mmproj` で指定する |
 | Gemma 4の思考はHermes側とllama-server側の両方を見る | README、詳細メモ | `reasoning_effort: xhigh` と `--reasoning-budget -1` |
 | Gemma 4とNemotron 3はTool履歴形式が違う | README、詳細メモ、Nemotronメモ | Gemmaは `assistant.tool_calls/tool_responses`、NemotronはOpenAI互換 `role: tool` ループ |
 | NVIDIA NIMでToolを渡すときは `tool_choice: auto` が必要 | Nemotronメモ | Toolありの時だけtop-levelへ付け、Toolなし会話では省く |
@@ -63,7 +64,7 @@
 | skill本文は指針であり、命令として無条件実行しない | 詳細メモ、SOUL例 | shell実行や認証変更は慎重に扱う |
 | `ddgs` は検索用で、本文抽出は別バックエンドが必要 | 詳細メモ | `web_extract` が必要なら抽出対応サービスを使う |
 | `hermes tools --summary` だけでは実体Tool確認にならない | 詳細メモ | `get_tool_definitions` で実体Tool数を見る |
-| `vision` はTool登録があってもローカルGemma側で制限がある | 詳細メモ | 画像入力対応モデルかを確認する |
+| `vision` Tool登録とモデル画像入力は別レイヤー | 詳細メモ | Tool登録だけで完了とせず、`image_url` の画像入力をAPIで実証する |
 | `image_gen` はバックエンド未設定なら使えない | 詳細メモ | 実体Toolが0件かを確認する |
 | `SOUL.md` は人格なりきりではなく支援方針として書く | 詳細メモ、SOUL例 | `You are ...` ではなく `This file defines ...` で始める |
 | 幸福プランは義務ではなく、ゆるい羅針盤として扱う | 詳細メモ、SOUL例 | できなかったことを責めない |
@@ -82,6 +83,7 @@
 - Discord numeric user ID
 - DMチャンネルID、またはDM内での `/sethome`
 - Gemma 4 GGUFモデルの実パス
+- `mmproj-gemma-4-12b-it-qat-q4_0.gguf` の実パス
 - `llama-server.exe` の実パス
 - Hermes Desktopの実パス
 - Obsidian Vaultと `hermes` 出力先の実パス
@@ -91,6 +93,8 @@
 次が通れば、今回の環境にかなり近い状態です。
 
 - `http://127.0.0.1:8080/v1/models` に `gemma-4-12b-it` が出る
+- llama-serverの起動ログに `mmproj-gemma-4-12b-it-qat-q4_0.gguf` が出る
+- ローカルPNGを `image_url` で送り、既知の画像内容を説明する応答が返る
 - Hermes Desktopの `/api/model/info` が `provider: custom` と `context_length: 262144` を返す
 - Gemma 4の `reasoning_content` が返る
 - Gemma 4でToolを呼び、Tool結果の次ターンが `assistant.tool_calls/tool_responses` 形式で崩れない
