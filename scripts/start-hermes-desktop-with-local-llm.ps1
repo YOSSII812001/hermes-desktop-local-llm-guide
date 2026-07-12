@@ -8,6 +8,8 @@ param(
     [string]$ExpectedServerExePath = "$env:USERPROFILE\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe",
     [string]$ExpectedModelPath = "$env:USERPROFILE\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf",
     [string]$ExpectedProjectorPath = "$env:USERPROFILE\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\mmproj-gemma-4-12b-it-qat-q4_0.gguf",
+    [ValidateRange(0, 2147483647)]
+    [int]$ExpectedContextCheckpoints = 0,
     [string]$LogsDir = "$env:USERPROFILE\.hermes\logs"
 )
 
@@ -137,7 +139,8 @@ function Get-LocalLlmServerProcesses {
             (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--mmproj" -ExpectedValue $ProjectorPath -PathValue) -and
             (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--alias" -ExpectedValue $ExpectedModel) -and
             (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--host" -ExpectedValue $BaseUri.Host) -and
-            (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--port" -ExpectedValue $BaseUri.Port)
+            (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--port" -ExpectedValue $BaseUri.Port) -and
+            (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--ctx-checkpoints" -ExpectedValue ([string]$ExpectedContextCheckpoints))
         }
 }
 
@@ -242,6 +245,7 @@ try {
                 -Alias $ExpectedModel `
                 -HostAddress $BaseUri.Host `
                 -Port $BaseUri.Port `
+                -ContextCheckpoints $ExpectedContextCheckpoints `
                 2>&1 | ForEach-Object {
                 Write-LifecycleLog "start: $($_.ToString())"
             }

@@ -225,6 +225,7 @@ C:\Users\<USER>\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe
   --port 8080 `
   --ctx-size 262144 `
   --parallel 1 `
+  --ctx-checkpoints 0 `
   --reasoning on `
   --reasoning-budget -1 `
   --reasoning-format deepseek `
@@ -232,7 +233,9 @@ C:\Users\<USER>\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe
   --cache-type-v q8_0
 ```
 
-ポイントは `--alias` です。
+Gemma 4ではcontext checkpointの既定値32が大きなメモリ状態を作り、Windows/CUDA環境で画像処理が不安定になることがあります。`--parallel 1`と`--ctx-checkpoints 0`を組み合わせ、checkpointを無効にします。
+
+接続設定のポイントは `--alias` です。
 Hermes側ではこの名前をモデル名として使います。
 
 `--reasoning on` と `--reasoning-budget -1` は、Gemma 4の思考を有効にして制限なし寄りにする設定です。
@@ -495,9 +498,10 @@ projectorなしの旧プロセスは停止し、画像入力対応の構成で�
 $ExpectedServerExePath = "C:\Users\<USER>\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe"
 $ExpectedModelPath = "C:\Users\<USER>\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf"
 $ExpectedProjectorPath = "C:\Users\<USER>\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\mmproj-gemma-4-12b-it-qat-q4_0.gguf"
+$ExpectedContextCheckpoints = 0
 ```
 
-`ServerExe`、`ExpectedServerExePath`、`ModelPath`、`MmprojPath`、`ExpectedModelPath`、`ExpectedProjectorPath` は、同じ公式QAT Q4_0構成を指すようにそろえてください。再利用と停止は実行ファイルの実体パスも照合するため、別の `llama-server.exe` を誤って操作しません。
+`ServerExe`、`ExpectedServerExePath`、`ModelPath`、`MmprojPath`、`ExpectedModelPath`、`ExpectedProjectorPath` は、同じ公式QAT Q4_0構成を指すようにそろえてください。起動スクリプトとランチャーは`ContextCheckpoints=0`も照合し、既定値32で動く旧プロセスを再利用しません。再利用と停止は実行ファイルの実体パスも照合するため、別の `llama-server.exe` を誤って操作しません。
 
 次にショートカットを作ります。
 

@@ -28,6 +28,7 @@
 | Gemma 4は古いllama.cppでは読めないことがある | README、詳細メモ | `unknown model architecture: 'gemma4'` が出たら更新する |
 | 16GB VRAMでは公式QAT Q4_0が現実的 | README | `google/gemma-4-12B-it-qat-q4_0-gguf` を第一候補にする |
 | Gemma 4の画像入力にはprojectorが必要 | README、詳細メモ | `mmproj-gemma-4-12b-it-qat-q4_0.gguf` を同じディレクトリへ置き、`--mmproj` で指定する |
+| Gemma 4の画像処理ではcontext checkpointを無効にする | llama.cpp Issue #21690、実機A/B | `--parallel 1 --ctx-checkpoints 0`で起動し、連続画像入力でもプロセスが落ちないことを確認する |
 | Gemma 4の思考はHermes側とllama-server側の両方を見る | README、詳細メモ | `reasoning_effort: xhigh` と `--reasoning-budget -1` |
 | Gemma 4とNemotron 3はTool履歴形式が違う | README、詳細メモ、Nemotronメモ | Gemmaは `assistant.tool_calls/tool_responses`、NemotronはOpenAI互換 `role: tool` ループ |
 | NVIDIA NIMでToolを渡すときは `tool_choice: auto` が必要 | Nemotronメモ | Toolありの時だけtop-levelへ付け、Toolなし会話では省く |
