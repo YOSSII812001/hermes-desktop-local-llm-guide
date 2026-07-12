@@ -5,9 +5,11 @@ param(
     [string]$HermesExe = "$env:LOCALAPPDATA\hermes\hermes-agent\apps\desktop\release\win-unpacked\Hermes.exe",
     [string]$BaseUrl = "http://127.0.0.1:8080/v1",
     [string]$ExpectedModel = "gemma-4-12b-it",
-    [string]$ExpectedServerExePath = "$env:USERPROFILE\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe",
+    [string]$ExpectedServerExePath = "$env:USERPROFILE\tools\llama.cpp-b9637-cuda-12.4\llama-server.exe",
     [string]$ExpectedModelPath = "$env:USERPROFILE\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf",
     [string]$ExpectedProjectorPath = "$env:USERPROFILE\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\mmproj-gemma-4-12b-it-qat-q4_0.gguf",
+    [ValidateRange(64000, 2147483647)]
+    [int]$ExpectedContextSize = 65536,
     [ValidateRange(0, 2147483647)]
     [int]$ExpectedContextCheckpoints = 0,
     [string]$LogsDir = "$env:USERPROFILE\.hermes\logs"
@@ -140,6 +142,7 @@ function Get-LocalLlmServerProcesses {
             (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--alias" -ExpectedValue $ExpectedModel) -and
             (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--host" -ExpectedValue $BaseUri.Host) -and
             (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--port" -ExpectedValue $BaseUri.Port) -and
+            (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--ctx-size" -ExpectedValue ([string]$ExpectedContextSize)) -and
             (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--ctx-checkpoints" -ExpectedValue ([string]$ExpectedContextCheckpoints))
         }
 }
@@ -245,6 +248,7 @@ try {
                 -Alias $ExpectedModel `
                 -HostAddress $BaseUri.Host `
                 -Port $BaseUri.Port `
+                -ContextSize $ExpectedContextSize `
                 -ContextCheckpoints $ExpectedContextCheckpoints `
                 2>&1 | ForEach-Object {
                 Write-LifecycleLog "start: $($_.ToString())"

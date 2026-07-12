@@ -23,8 +23,8 @@
 | Claude Opus 4.8 は `claude-opus-4-8` と書く | Claude / stop-slop 復旧メモ | `claude-opus-4.8` や `claude-fable-5[1m]` を既定値に残さない |
 | `stop-slop` はruntimeごとのskill directoryに置く | Claude / stop-slop 復旧メモ、install script | `.claude\skills`、`.codex\skills`、`.agents\skills` を確認する |
 | Claude Desktop local agent modeは別のskills-plugin manifestを見ることがある | Claude / stop-slop 復旧メモ、install script | `%APPDATA%\Claude\local-agent-mode-sessions\skills-plugin\...\manifest.json` に `stop-slop` があり、有効化されているか確認する |
-| Hermes Agentは64K程度のコンテキストを要求することがある | README、詳細メモ | 下限は64K。公式Gemma 4 QAT Q4_0では256Kも起動できた |
-| 256KではKVキャッシュのVRAMが大きくなる | README、詳細メモ、config例 | `--cache-type-k q8_0` と `--cache-type-v q8_0` で余裕を作る |
+| Hermes Agentは64K程度のコンテキストを要求することがある | README、詳細メモ | 下限を満たす64KをGemma 4の安定構成にする |
+| 長いコンテキストではKVキャッシュのVRAMが大きくなる | README、詳細メモ、config例 | `--cache-type-k q8_0` と `--cache-type-v q8_0` を使い、既定は64Kに抑える |
 | Gemma 4は古いllama.cppでは読めないことがある | README、詳細メモ | `unknown model architecture: 'gemma4'` が出たら更新する |
 | 16GB VRAMでは公式QAT Q4_0が現実的 | README | `google/gemma-4-12B-it-qat-q4_0-gguf` を第一候補にする |
 | Gemma 4の画像入力にはprojectorが必要 | README、詳細メモ | `mmproj-gemma-4-12b-it-qat-q4_0.gguf` を同じディレクトリへ置き、`--mmproj` で指定する |
@@ -96,7 +96,7 @@
 - `http://127.0.0.1:8080/v1/models` に `gemma-4-12b-it` が出る
 - llama-serverの起動ログに `mmproj-gemma-4-12b-it-qat-q4_0.gguf` が出る
 - ローカルPNGを `image_url` で送り、既知の画像内容を説明する応答が返る
-- Hermes Desktopの `/api/model/info` が `provider: custom` と `context_length: 262144` を返す
+- Hermes Desktopの `/api/model/info` が `provider: custom` と `context_length: 65536` を返す
 - Gemma 4の `reasoning_content` が返る
 - Gemma 4でToolを呼び、Tool結果の次ターンが `assistant.tool_calls/tool_responses` 形式で崩れない
 - `/model nemotron` 後にToolを呼び、NVIDIA NIM側では `tool_choice: auto` とOpenAI互換 `role: tool` ループで崩れない

@@ -34,7 +34,7 @@ LoRAファインチューニングは、この弱点への根本対策です。�
 ## 2. 裏どり結果（実現可能性: high）
 
 2026年6月時点の調査結果です。検証環境は README「検証環境」と同じ
-（RTX 4070 16GB / RAM 64GB級 / Windows 11 / llama.cpp b9498 CUDA版 / Gemma 4 12B IT QAT Q4_0 GGUF）。
+（RTX 4070 16GB / RAM 64GB級 / Windows 11 / llama.cpp b9637 CUDA 12.4版 / Gemma 4 12B IT QAT Q4_0 GGUF）。
 
 ### 成立の決め手5点
 

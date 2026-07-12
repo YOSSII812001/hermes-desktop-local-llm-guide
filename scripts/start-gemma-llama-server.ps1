@@ -1,11 +1,12 @@
 param(
-    [string]$ServerExe = "$env:USERPROFILE\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe",
+    [string]$ServerExe = "$env:USERPROFILE\tools\llama.cpp-b9637-cuda-12.4\llama-server.exe",
     [string]$ModelPath = "$env:USERPROFILE\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf",
     [string]$MmprojPath = "",
     [string]$Alias = "gemma-4-12b-it",
     [string]$HostAddress = "127.0.0.1",
     [int]$Port = 8080,
-    [int]$ContextSize = 262144,
+    [ValidateRange(64000, 2147483647)]
+    [int]$ContextSize = 65536,
     [ValidateRange(0, 2147483647)]
     [int]$ContextCheckpoints = 0,
     [string]$LogsDir = "$env:USERPROFILE\.hermes\logs",
@@ -157,6 +158,7 @@ function Get-ExpectedGemmaServerProcess {
             (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--host" -ExpectedValue $HostAddress) -and
             (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--port" -ExpectedValue ([string]$Port)) -and
             (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--mmproj" -ExpectedValue $MmprojPath -PathValue) -and
+            (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--ctx-size" -ExpectedValue ([string]$ContextSize)) -and
             (Test-CommandLineNamedArgument -CommandLine $_.CommandLine -Name "--ctx-checkpoints" -ExpectedValue ([string]$ContextCheckpoints))
         }
 }

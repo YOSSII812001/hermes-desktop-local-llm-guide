@@ -48,7 +48,7 @@ Desktopを閉じるとGemma 4を停止する運用にすると、VRAMは空き�
 | 量子化 | QAT Q4_0 |
 | 推論サーバー | llama.cpp `llama-server` |
 | API | `http://127.0.0.1:8080/v1` |
-| コンテキスト長 | 262144 |
+| コンテキスト長 | 65536 |
 | KVキャッシュ | `q8_0` |
 | Hermes設定パス | `%LOCALAPPDATA%\hermes\config.yaml` |
 | Obsidian出力先 | `%USERPROFILE%\Documents\Obsidian Vault\hermes` |
@@ -103,13 +103,13 @@ Gemma 4は、古いllama.cppでは読み込めないことがあります。
 起動例:
 
 ```powershell
-& "$env:USERPROFILE\tools\llama.cpp-b9498-cuda-12.4\llama-server.exe" `
+& "$env:USERPROFILE\tools\llama.cpp-b9637-cuda-12.4\llama-server.exe" `
   -m "$env:USERPROFILE\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\gemma-4-12b-it-qat-q4_0.gguf" `
   --mmproj "$env:USERPROFILE\.cache\lm-studio\models\google\gemma-4-12B-it-qat-q4_0-gguf\mmproj-gemma-4-12b-it-qat-q4_0.gguf" `
   --alias gemma-4-12b-it `
   --host 127.0.0.1 `
   --port 8080 `
-  --ctx-size 262144 `
+  --ctx-size 65536 `
   --parallel 1 `
   --ctx-checkpoints 0 `
   --reasoning on `
@@ -129,7 +129,7 @@ Invoke-RestMethod http://127.0.0.1:8080/v1/models |
 ```
 
 `id` に `gemma-4-12b-it` が出ればOKです。
-`meta.n_ctx` が `262144` になっていれば、256Kコンテキストで起動しています。
+`meta.n_ctx` が `65536` になっていれば、64Kコンテキストで起動しています。
 
 ## 3. Gemma 4の最大思考を有効にする
 
