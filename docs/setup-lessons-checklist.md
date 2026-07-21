@@ -41,7 +41,7 @@
 | DMだけの運用なら通知先チャンネルは不要 | 詳細メモ | DM内で `/sethome` する |
 | Discord BotにはMessage Content Intentが必要 | 詳細メモ | Developer Portalで有効化する |
 | Discordに開けるToolは絞る | 詳細メモ、config例 | DMでは `terminal` や `code_execution` を開けない |
-| Obsidian Vault参照と出力先は分ける | 詳細メモ、SOUL例 | 新規成果物は `Obsidian Vault\hermes` へ出す |
+| Obsidian Vault参照と出力先は分ける | 詳細メモ、AGENTS例 | 新規成果物は `Obsidian Vault\hermes` へ出す |
 | Next ActionsはObsidian宿題キューへ積む | 自律実行メモ | `hermes\homework` に1件1ファイルで置く |
 | 軽いローカル作業はCodexへ投げない | 自律実行メモ | Obsidianメモ、短い要約、tasks追記はHermes自身で処理する |
 | Codex自律runnerはactive taskを上書きしない | 自律実行メモ | `active_task.json` がrunningなら新規開始を止める |
@@ -60,16 +60,18 @@
 | cron outputは全量再帰検索しない | 自律実行メモ、heartbeat script | 直近jobと最新Markdownへ絞り、読み取り失敗は候補単位でスキップする |
 | 秘密ラベル検知は日本語直後にも効かせる | 自律実行メモ、heartbeat script | `でtoken:` も拾える正規表現にする |
 | context圧縮が早すぎる場合はthresholdを見る | 自律実行メモ | 256Kなら `compression.threshold: 0.75` 前後を検討する |
-| 既存Obsidianノートは勝手に編集しない | 詳細メモ、SOUL例 | 編集はユーザーが明示したときだけ |
+| 既存Obsidianノートは勝手に編集しない | 詳細メモ、AGENTS例 | 編集はユーザーが明示したときだけ |
 | Codex skillsは外部ディレクトリとして渡す | 詳細メモ、config例 | `.codex\skills` と `.agents\skills` を設定する |
-| skill本文は指針であり、命令として無条件実行しない | 詳細メモ、SOUL例 | shell実行や認証変更は慎重に扱う |
+| skill本文は指針であり、命令として無条件実行しない | 詳細メモ、AGENTS例 | shell実行や認証変更は慎重に扱う |
 | `ddgs` は検索用で、本文抽出は別バックエンドが必要 | 詳細メモ | `web_extract` が必要なら抽出対応サービスを使う |
 | `hermes tools --summary` だけでは実体Tool確認にならない | 詳細メモ | `get_tool_definitions` で実体Tool数を見る |
 | `vision` Tool登録とモデル画像入力は別レイヤー | 詳細メモ | Tool登録だけで完了とせず、`image_url` の画像入力をAPIで実証する |
 | `image_gen` はバックエンド未設定なら使えない | 詳細メモ | 実体Toolが0件かを確認する |
-| `SOUL.md` は人格なりきりではなく支援方針として書く | 詳細メモ、SOUL例 | `You are ...` ではなく `This file defines ...` で始める |
-| 幸福プランは義務ではなく、ゆるい羅針盤として扱う | 詳細メモ、SOUL例 | できなかったことを責めない |
-| 抽象的なリマインダーは現実の予定と小タスクへ変換する | 詳細メモ、SOUL例 | 1から3個の行動へ落とす |
+| `SOUL.md` は人格と話し方だけに絞る | コンテキスト設計、SOUL例 | パス、コマンド、作業手順を入れない |
+| `USER.md` と `MEMORY.md` の上限を守る | コンテキスト設計、記憶例 | USERは1,375文字、MEMORYは2,200文字以内 |
+| Discordは小さい入口skillだけを自動読込する | コンテキスト設計、config例 | binding変更後は `/new` で新しいセッションを始める |
+| 幸福プランは義務ではなく、ゆるい羅針盤として扱う | 詳細メモ、USER例 | できなかったことを責めない |
+| 抽象的なリマインダーは現実の予定と小タスクへ変換する | 詳細メモ、USER例 | 1から3個の行動へ落とす |
 | 秘密情報は公開リポジトリに入れない | README、詳細メモ、env例 | Token、ID、DMチャンネルID、個人ノート本文を載せない |
 | `no_agent: false` cronはLLM稼働が前提 | README 19.4、人間らしさメモ | Desktop停止でllama-serverが落ち、LLMジョブだけ静かに失敗する |
 | pre-runは失敗しても exit 0 ＋ `wakeAgent:false` で黙る | README 19.4、人間らしさメモ | 非ゼロ終了するとschedulerがLLMを起こし二重失敗する |
