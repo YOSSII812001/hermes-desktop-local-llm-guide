@@ -9,6 +9,7 @@ Discord DM、Obsidian、Codex skills、各種Tool useまで含めた個人メン
 
 - [Hermes Agent Desktop を個人メンター秘書として運用する設定メモ](docs/personal-mentor-discord-obsidian-gemma4.md)
 - [Hermes Agent Desktop 自律実行とGateway運用メモ](docs/autonomous-codex-gateway-ops.md)
+- [SOUL・記憶・プロジェクト文書・skillsを役割別に整理する](docs/context-files-memory-skills.md)
 - [Hermes Agent Desktop セットアップ学びチェックリスト](docs/setup-lessons-checklist.md)
 - [Hermes Agent Desktop を人間らしくする設定メモ（記憶・ゆらぎ・調子・文体・内面）](docs/human-like-behavior.md)
 - [Claude / stop-slop 復旧メモ](docs/claude-stop-slop-recovery.md)
@@ -126,6 +127,10 @@ Hermes Desktop側から見ると、ローカルにあるOpenAI互換エンドポ
 今回の一番大きな学びはここです。
 
 Hermes CLI用の設定と、Hermes Desktop用の設定は別の場所を見ていることがあります。
+
+また、`SOUL.md` は人格と話し方だけに使います。
+利用者情報、環境の事実、プロジェクト規則、作業手順は別の場所へ分けます。
+詳しくは [Hermesのコンテキストを役割別に整理する](docs/context-files-memory-skills.md) を確認してください。
 
 Tool useもモデルごとに前提が違います。ローカルGemma 4はGemma 4のchat templateに合わせ、完了済みのTool結果を `assistant.tool_calls` / `assistant.tool_responses` として戻す必要があります。一方、NVIDIA NIM上のNemotron 3はOpenAI互換の `tools` / `assistant.tool_calls` / `role: tool` ループを維持し、Toolを渡すときだけ top-level の `tool_choice: auto` を付けます。
 

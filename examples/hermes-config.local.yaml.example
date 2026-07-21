@@ -13,6 +13,10 @@ model:
   context_length: 262144
   api_key: not-needed
 
+# Keep context files small first. Pin this only when a larger limit is
+# intentional and the active Hermes version supports the setting.
+# context_file_max_chars: 20000
+
 agent:
   reasoning_effort: xhigh
 
@@ -45,3 +49,11 @@ platform_toolsets:
     - session_search
     - web
     - no_mcp
+
+discord:
+  # Replace the placeholder locally. Never commit a real Discord ID.
+  # The skill is loaded when a new session starts in this DM or channel.
+  channel_skill_bindings:
+    - id: "<DISCORD_DM_OR_CHANNEL_ID>"
+      skills:
+        - hermes-discord-core
